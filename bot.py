@@ -2,8 +2,10 @@ import os
 import sqlite3
 import logging
 import asyncio
+import threading
 from datetime import datetime
 from pathlib import Path
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -33,7 +35,29 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# 2. Inicialização do Banco SQLite
+# 2. Servidor HTTP para compatibilidade com Render Web Service (Free Tier)
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"✈️ Bot de Alerta de Passagens Online e Monitorando!")
+
+    def log_message(self, format, *args):
+        pass  # Silencia logs de health check para nao poluir o terminal
+
+def iniciar_servidor_http():
+    porta = int(os.environ.get("PORT", 8080))
+    try:
+        servidor = HTTPServer(("0.0.0.0", porta), HealthCheckHandler)
+        logging.info(f"Servidor HTTP de Health Check ativo na porta {porta}")
+        servidor.serve_forever()
+    except Exception as e:
+        logging.warning(f"Não foi possível iniciar servidor HTTP na porta {porta}: {e}")
+
+threading.Thread(target=iniciar_servidor_http, daemon=True).start()
+
+# 3. Inicialização do Banco SQLite
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -56,7 +80,7 @@ def init_db():
 
 init_db()
 
-# 3. Consulta ao Google Flights via fast-flights
+# 4. Consulta ao Google Flights via fast-flights
 def buscar_voos_google(origem: str, destino: str, data_ida: str, data_volta: str = None) -> list:
     try:
         if data_volta:
@@ -99,7 +123,7 @@ def buscar_voos_google(origem: str, destino: str, data_ida: str, data_volta: str
         logging.error(f"Erro ao consultar Google Flights para {origem}->{destino}: {e}")
         return []
 
-# 4. Handlers de Comandos do Telegram
+# 5. Handlers de Comandos do Telegram
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
@@ -147,7 +171,6 @@ async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data_ida = args[3].strip()
     data_volta = args[4].strip() if len(args) > 4 else None
 
-    # Validação de data
     try:
         datetime.strptime(data_ida, "%Y-%m-%d")
         if data_volta:
@@ -240,7 +263,7 @@ async def remover_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(f"❓ Alerta #{alerta_id} não encontrado ou já removido.", parse_mode="Markdown")
 
-# 5. Rotina de Verificação
+# 6. Rotina de Verificação
 async def checar_alertas(bot):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -300,7 +323,7 @@ async def testar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await checar_alertas(context.bot)
     await update.message.reply_text("✔️ *Consulta finalizada!* Se algum voo bateu seu preço teto, a notificação já foi enviada acima.", parse_mode="Markdown")
 
-# 6. Agendador Assíncrono Nativo (dispensa dependências extras de JobQueue)
+# 7. Agendador Assíncrono Nativo
 async def loop_agendado(app):
     await asyncio.sleep(15)  # Primeira checagem 15 segundos após ligar
     while True:
@@ -313,7 +336,7 @@ async def loop_agendado(app):
 async def post_init(application):
     asyncio.create_task(loop_agendado(application))
 
-# 7. Inicialização Principal
+# 8. Inicialização Principal
 def main():
     print("Iniciando Bot de Alerta de Passagens...")
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
