@@ -47,6 +47,7 @@ alerta-voos-telegram/
 ├── main.py                       # Ponto de entrada oficial da aplicação
 ├── bot.py                        # Wrapper retrocompatível (delega para main.py)
 ├── .env.example                  # Molde de variáveis de ambiente sem segredos
+├── .python-version               # Versão do runtime Python fixada para o Heroku (3.12)
 ├── Procfile                      # Execução no Heroku (worker: python bot.py)
 ├── iniciar.sh                    # Script bash para rodar localmente
 ├── requirements.txt              # Dependências do projeto (python-telegram-bot, fast-flights, libsql, typing_extensions)
