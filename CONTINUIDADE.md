@@ -87,12 +87,12 @@ PORT=8080
 
 ## 5. Roadmap de Sprints no GitHub (Issues e Milestones)
 
-* **🏃‍♂️ Sprint 1: UX Interativa & Dicionário de Cidades (Milestone 1)**
-  - [#1](https://github.com/Italo61-dev/alerta-voos-telegram/issues/1): `feat(ux)` Ações rápidas com 1 clique nas listagens e notificações.
-  - [#2](https://github.com/Italo61-dev/alerta-voos-telegram/issues/2): `feat(iata)` Dicionário inteligente de cidades para códigos IATA.
-  - [#3](https://github.com/Italo61-dev/alerta-voos-telegram/issues/3): `feat(ux)` Wizard conversacional guiado para criação de alerta (/novo).
+* **🏃‍♂️ Sprint 1: UX Interativa & Dicionário de Cidades (Milestone 1) - [CONCLUÍDA NA BRANCH]**
+  - [#1](https://github.com/Italo61-dev/alerta-voos-telegram/issues/1): `feat(ux)` Ações rápidas com 1 clique nas listagens e notificações (implementado).
+  - [#2](https://github.com/Italo61-dev/alerta-voos-telegram/issues/2): `feat(iata)` Dicionário inteligente de cidades para códigos IATA (implementado via `AirportService`).
+  - [#3](https://github.com/Italo61-dev/alerta-voos-telegram/issues/3): `feat(ux)` Wizard conversacional guiado para criação de alerta (`/novo` implementado via `ConversationHandler`).
 
-* **🤖 Sprint 2: IA com Google Gemini (Milestone 2)**
+* **🤖 Sprint 2: IA com Google Gemini (Milestone 2) - [PRÓXIMA SPRINT]**
   - [#4](https://github.com/Italo61-dev/alerta-voos-telegram/issues/4): `feat(ai)` Criação de alertas por linguagem natural (texto livre).
   - [#5](https://github.com/Italo61-dev/alerta-voos-telegram/issues/5): `feat(ai)` Transcrição e extração de alertas a partir de áudios do Telegram.
   - [#6](https://github.com/Italo61-dev/alerta-voos-telegram/issues/6): `feat(ai)` Consultor de viagens inteligente para dicas de turismo e épocas baratas.
@@ -111,6 +111,5 @@ PORT=8080
 ---
 
 ## 6. Próxima Etapa de Desenvolvimento
-* Criar e navegar para a branch `feature/sprint-1-ux-actions-dictionary`.
-* Implementar Issue #1 (Ações de 1 clique) e Issue #2 (Dicionário IATA).
-* Abrir Pull Request para merge na branch `main`.
+* Fazer merge da branch `feature/sprint-1-ux-actions-dictionary` para `main` (disparando o deploy automático no Heroku).
+* Iniciar a **Sprint 2 (IA com Google Gemini)**: branch `feature/sprint-2-gemini-ai`.
