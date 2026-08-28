@@ -19,27 +19,38 @@ BASE_DIR = Path(__file__).resolve().parent
 ENV_PATH = BASE_DIR / ".env"
 DB_PATH = BASE_DIR / "alertas.db"
 
-def carregar_token():
-    # 1. Tenta carregar do arquivo .env (para desenvolvimento local)
+def carregar_env():
     if ENV_PATH.exists():
         with open(ENV_PATH, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if line.startswith("TELEGRAM_TOKEN="):
-                    val = line.split("=", 1)[1].strip().strip("\"'")
-                    if val:
-                        return val
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("\"'")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
 
-    # 2. Tenta ler das variáveis de ambiente (Heroku, Render, etc.)
-    token = os.environ.get("TELEGRAM_TOKEN")
-    if not token:
-        raise ValueError(
-            "TELEGRAM_TOKEN não configurado! "
-            "Defina a variável nas Config Vars do Heroku ou crie um arquivo .env localmente."
-        )
-    return token
+carregar_env()
 
-TELEGRAM_TOKEN = carregar_token()
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+if not TELEGRAM_TOKEN:
+    raise ValueError(
+        "TELEGRAM_TOKEN não configurado! "
+        "Defina a variável nas Config Vars do Heroku ou crie um arquivo .env localmente."
+    )
+
+TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL")
+TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
+
+def get_db():
+    if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
+        try:
+            import libsql
+            return libsql.connect(TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
+        except Exception as e:
+            logging.error(f"Erro ao conectar ao Turso Cloud: {e}. Usando fallback para SQLite local.")
+    return sqlite3.connect(DB_PATH)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -70,7 +81,7 @@ threading.Thread(target=iniciar_servidor_http, daemon=True).start()
 
 # 3. Inicialização do Banco SQLite
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS alertas (
@@ -190,7 +201,7 @@ async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ *Formato de data inválido!* Use o formato `AAAA-MM-DD` (ex: `2026-10-15`).", parse_mode="Markdown")
         return
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO alertas (chat_id, origem, destino, teto, data_ida, data_volta)
@@ -216,7 +227,7 @@ async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def listar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT id, origem, destino, teto, data_ida, data_volta, ultimo_preco
@@ -262,7 +273,7 @@ async def remover_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ O ID deve ser um número inteiro.", parse_mode="Markdown")
         return
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     cursor = conn.cursor()
     cursor.execute("UPDATE alertas SET ativo = 0 WHERE id = ? AND chat_id = ?", (alerta_id, chat_id))
     afetados = cursor.rowcount
@@ -276,7 +287,7 @@ async def remover_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 6. Rotina de Verificação
 async def checar_alertas(bot):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT id, chat_id, origem, destino, teto, data_ida, data_volta, ultimo_preco FROM alertas WHERE ativo = 1")
     alertas = cursor.fetchall()
@@ -299,7 +310,7 @@ async def checar_alertas(bot):
 
         if preco_atual <= teto:
             if ult_preco is None or preco_atual < ult_preco:
-                c = sqlite3.connect(DB_PATH)
+                c = get_db()
                 c.execute("UPDATE alertas SET ultimo_preco = ? WHERE id = ?", (preco_atual, aid))
                 c.commit()
                 c.close()
