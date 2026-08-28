@@ -6,10 +6,15 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram import Update
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
+    CallbackQueryHandler,
     ContextTypes,
 )
 from fast_flights import FlightQuery, create_query, get_flights
@@ -42,6 +47,7 @@ if not TELEGRAM_TOKEN:
 
 TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL")
 TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
+ADMIN_ID = os.environ.get("ADMIN_ID", "5599506814")
 
 def get_db():
     if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
@@ -79,7 +85,7 @@ def iniciar_servidor_http():
 
 threading.Thread(target=iniciar_servidor_http, daemon=True).start()
 
-# 3. Inicialização do Banco SQLite
+# 3. Inicialização do Banco de Dados
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
@@ -97,10 +103,103 @@ def init_db():
             criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            user_id INTEGER PRIMARY KEY,
+            nome TEXT,
+            username TEXT,
+            autorizado INTEGER DEFAULT 0,
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    if ADMIN_ID:
+        try:
+            cursor.execute("""
+                INSERT OR IGNORE INTO usuarios (user_id, nome, username, autorizado)
+                VALUES (?, 'Administrador', 'admin', 1)
+            """, (int(ADMIN_ID),))
+            cursor.execute("UPDATE usuarios SET autorizado = 1 WHERE user_id = ?", (int(ADMIN_ID),))
+        except Exception as e:
+            logging.error(f"Erro ao definir admin padrão: {e}")
     conn.commit()
     conn.close()
 
 init_db()
+
+# 4. Controle de Acesso e Permissões
+def is_admin(user_id: int) -> bool:
+    return ADMIN_ID is not None and str(user_id) == str(ADMIN_ID)
+
+def is_autorizado(user_id: int) -> bool:
+    if is_admin(user_id):
+        return True
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT autorizado FROM usuarios WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return bool(row and row[0] == 1)
+    except Exception as e:
+        logging.error(f"Erro ao verificar autorização de {user_id}: {e}")
+        return False
+
+async def verificar_acesso(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    user = update.effective_user
+    if not user:
+        return False
+
+    user_id = user.id
+    if is_autorizado(user_id):
+        return True
+
+    # Registra solicitação no banco se ainda não existir
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR IGNORE INTO usuarios (user_id, nome, username, autorizado)
+            VALUES (?, ?, ?, 0)
+        """, (user_id, user.full_name or "Sem Nome", user.username or ""))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Erro ao registrar solicitação: {e}")
+
+    # Notifica o Administrador no Telegram com botões interativos
+    if ADMIN_ID and not is_admin(user_id):
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Aprovar", callback_data=f"aprovar_{user_id}"),
+                InlineKeyboardButton("❌ Recusar", callback_data=f"recusar_{user_id}")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        try:
+            nome = user.full_name or "Sem nome"
+            uname = f"@{user.username}" if user.username else "sem username"
+            await context.bot.send_message(
+                chat_id=int(ADMIN_ID),
+                text=(
+                    f"🔔 *Nova solicitação de acesso!*\n\n"
+                    f"👤 *Nome:* {nome}\n"
+                    f"🔗 *Username:* {uname}\n"
+                    f"🆔 *ID:* `{user_id}`\n\n"
+                    f"Deseja autorizar este usuário a monitorar voos?"
+                ),
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        except Exception as ex:
+            logging.error(f"Erro ao notificar administrador: {ex}")
+
+    await update.message.reply_text(
+        "🔒 *Acesso Restrito*\n\n"
+        "Este bot é privado. Uma solicitação de acesso foi enviada ao administrador!\n"
+        "Você será avisado aqui assim que o acesso for liberado.",
+        parse_mode="Markdown"
+    )
+    return False
 
 # 4. Consulta ao Google Flights via fast-flights
 def buscar_voos_google(origem: str, destino: str, data_ida: str, data_volta: str = None) -> list:
@@ -148,6 +247,10 @@ def buscar_voos_google(origem: str, destino: str, data_ida: str, data_volta: str
 # 5. Handlers de Comandos do Telegram
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await verificar_acesso(update, context):
+        return
+
+    chat_id = update.effective_chat.id
     msg = (
         "✈️ *Bem-vindo ao Bot de Alerta de Passagens Baratas!*\n\n"
         "Eu monitoro o *Google Flights* periodicamente e te aviso no Telegram "
@@ -165,9 +268,21 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "`/testar` - Fazer uma checagem imediata de todos os seus alertas agora\n"
         "`/ajuda` - Reexibir esta mensagem"
     )
+
+    if is_admin(chat_id):
+        msg += (
+            "\n\n👑 *Comandos de Administrador:*\n"
+            "`/usuarios` - Ver usuários e solicitações\n"
+            "`/aprovar ID` - Aprovar acesso manualmente\n"
+            "`/bloquear ID` - Bloquear acesso de um usuário"
+        )
+
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await verificar_acesso(update, context):
+        return
+
     chat_id = update.effective_chat.id
     args = context.args
 
@@ -226,6 +341,9 @@ async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(resposta, parse_mode="Markdown")
 
 async def listar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await verificar_acesso(update, context):
+        return
+
     chat_id = update.effective_chat.id
     conn = get_db()
     cursor = conn.cursor()
@@ -260,6 +378,9 @@ async def listar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def remover_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await verificar_acesso(update, context):
+        return
+
     chat_id = update.effective_chat.id
     args = context.args
 
@@ -285,11 +406,16 @@ async def remover_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(f"❓ Alerta #{alerta_id} não encontrado ou já removido.", parse_mode="Markdown")
 
-# 6. Rotina de Verificação
 async def checar_alertas(bot):
+    admin_id_num = int(ADMIN_ID) if ADMIN_ID and str(ADMIN_ID).isdigit() else 0
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, chat_id, origem, destino, teto, data_ida, data_volta, ultimo_preco FROM alertas WHERE ativo = 1")
+    cursor.execute("""
+        SELECT a.id, a.chat_id, a.origem, a.destino, a.teto, a.data_ida, a.data_volta, a.ultimo_preco 
+        FROM alertas a
+        LEFT JOIN usuarios u ON a.chat_id = u.user_id
+        WHERE a.ativo = 1 AND (u.autorizado = 1 OR a.chat_id = ?)
+    """, (admin_id_num,))
     alertas = cursor.fetchall()
     conn.close()
 
@@ -341,11 +467,153 @@ async def checar_alertas(bot):
                     logging.error(f"Erro ao enviar mensagem Telegram: {ex}")
 
 async def testar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await verificar_acesso(update, context):
+        return
+
     await update.message.reply_text("🔍 *Consultando o Google Flights agora...*", parse_mode="Markdown")
     await checar_alertas(context.bot)
     await update.message.reply_text("✔️ *Consulta finalizada!* Se algum voo bateu seu preço teto, a notificação já foi enviada acima.", parse_mode="Markdown")
 
-# 7. Agendador Assíncrono Nativo
+# 7. Comandos de Administração
+async def usuarios_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        return
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, nome, username, autorizado FROM usuarios ORDER BY criado_em DESC")
+    rows = cursor.fetchall()
+    conn.close()
+
+    if not rows:
+        await update.message.reply_text("Nenhum usuário registrado.", parse_mode="Markdown")
+        return
+
+    msg = "👥 *Painel de Usuários:*\n\n"
+    for r in rows:
+        uid, nome, username, aut = r
+        status = "✅ Autorizado" if aut == 1 else "⏳ Pendente/Bloqueado"
+        admin_tag = " 👑 *(Você)*" if is_admin(uid) else ""
+        uname = f"@{username}" if username else "sem username"
+        msg += f"• *{nome}*{admin_tag} ({uname})\n  🆔 `{uid}` | {status}\n"
+        if not is_admin(uid):
+            msg += f"  _Ações:_ `/aprovar {uid}` | `/bloquear {uid}`\n"
+        msg += "\n"
+
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def aprovar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    if not context.args:
+        await update.message.reply_text("⚠️ Informe o ID do usuário. Exemplo: `/aprovar 12345678`", parse_mode="Markdown")
+        return
+
+    try:
+        target_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ O ID deve ser um número inteiro.", parse_mode="Markdown")
+        return
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE usuarios SET autorizado = 1 WHERE user_id = ?", (target_id,))
+    conn.commit()
+    conn.close()
+
+    await update.message.reply_text(f"✅ Usuário `{target_id}` aprovado com sucesso!", parse_mode="Markdown")
+    try:
+        await context.bot.send_message(
+            chat_id=target_id,
+            text=(
+                "🎉 *Seu acesso foi liberado pelo administrador!*\n\n"
+                "Você já pode cadastrar seus alertas de voos no bot.\n"
+                "Envie /ajuda para ver os comandos."
+            ),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logging.error(f"Erro ao notificar usuário aprovado: {e}")
+
+async def bloquear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    if not context.args:
+        await update.message.reply_text("⚠️ Informe o ID do usuário. Exemplo: `/bloquear 12345678`", parse_mode="Markdown")
+        return
+
+    try:
+        target_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ O ID deve ser um número inteiro.", parse_mode="Markdown")
+        return
+
+    if is_admin(target_id):
+        await update.message.reply_text("⚠️ Você não pode bloquear o próprio administrador!", parse_mode="Markdown")
+        return
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE usuarios SET autorizado = 0 WHERE user_id = ?", (target_id,))
+    conn.commit()
+    conn.close()
+
+    await update.message.reply_text(f"🚫 Usuário `{target_id}` bloqueado com sucesso!", parse_mode="Markdown")
+
+async def callback_aprovacao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        await query.edit_message_text("⛔ Ação permitida apenas para o administrador.")
+        return
+
+    data = query.data
+    if data.startswith("aprovar_"):
+        target_id = int(data.split("_")[1])
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE usuarios SET autorizado = 1 WHERE user_id = ?", (target_id,))
+        conn.commit()
+        conn.close()
+
+        await query.edit_message_text(f"✅ Usuário `{target_id}` *aprovado com sucesso!*", parse_mode="Markdown")
+        try:
+            await context.bot.send_message(
+                chat_id=target_id,
+                text=(
+                    "🎉 *Seu acesso foi aprovado pelo administrador!*\n\n"
+                    "Agora você já pode monitorar passagens aéreas.\n"
+                    "Envie /start ou /ajuda para ver as instruções."
+                ),
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.error(f"Erro ao notificar usuário {target_id}: {e}")
+
+    elif data.startswith("recusar_"):
+        target_id = int(data.split("_")[1])
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE usuarios SET autorizado = 0 WHERE user_id = ?", (target_id,))
+        conn.commit()
+        conn.close()
+
+        await query.edit_message_text(f"❌ Usuário `{target_id}` *recusado/bloqueado.*", parse_mode="Markdown")
+        try:
+            await context.bot.send_message(
+                chat_id=target_id,
+                text="🚫 Sua solicitação de acesso não foi aprovada pelo administrador.",
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.error(f"Erro ao notificar usuário {target_id}: {e}")
+
+# 8. Agendador Assíncrono Nativo
 async def loop_agendado(app):
     await asyncio.sleep(15)  # Primeira checagem 15 segundos após ligar
     while True:
@@ -358,7 +626,7 @@ async def loop_agendado(app):
 async def post_init(application):
     asyncio.create_task(loop_agendado(application))
 
-# 8. Inicialização Principal
+# 9. Inicialização Principal
 def main():
     print("Iniciando Bot de Alerta de Passagens...")
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
@@ -369,6 +637,10 @@ def main():
     app.add_handler(CommandHandler("listar", listar_command))
     app.add_handler(CommandHandler("remover", remover_command))
     app.add_handler(CommandHandler("testar", testar_command))
+    app.add_handler(CommandHandler("usuarios", usuarios_command))
+    app.add_handler(CommandHandler("aprovar", aprovar_command))
+    app.add_handler(CommandHandler("bloquear", bloquear_command))
+    app.add_handler(CallbackQueryHandler(callback_aprovacao))
 
     print("🤖 Bot pronto e escutando mensagens no Telegram!")
     app.run_polling()
