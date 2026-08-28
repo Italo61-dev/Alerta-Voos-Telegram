@@ -17,6 +17,7 @@ from src.bot.middlewares import requer_autorizacao
 from src.services.airport_service import AirportService
 from src.services.flight_service import FlightService
 from src.services.notifier_service import NotifierService
+from src.services.date_service import DateService
 from src.models.alerta import Alerta
 
 # Estados da conversação
@@ -112,49 +113,54 @@ async def receber_tipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if tipo == "tipo_ida":
         await query.edit_message_text(
-            "📅 *Passo 4 de 5:* Qual a data do voo?\n"
-            "Use o formato `AAAA-MM-DD` (ex: `2026-11-15`):",
+            "📅 *Passo 4 de 5:* Qual a data do voo?\n\n"
+            "Digite no padrão do dia a dia (ex: `15/11/2026` ou apenas `15/11`):",
             parse_mode="Markdown"
         )
         return ESCOLHER_DATA_IDA
     else:
         await query.edit_message_text(
-            "📅 *Passo 4 de 5:* Qual a *Data de Ida*?\n"
-            "Use o formato `AAAA-MM-DD` (ex: `2026-11-10`):",
+            "📅 *Passo 4 de 5:* Qual a *Data de Ida*?\n\n"
+            "Digite no padrão do dia a dia (ex: `10/11/2026` ou apenas `10/11`):",
             parse_mode="Markdown"
         )
         return ESCOLHER_DATA_IDA
 
 async def receber_data_ida(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
-    try:
-        dt = datetime.strptime(texto, "%Y-%m-%d")
-        if dt.date() < datetime.now().date():
-            await update.message.reply_text(
-                "❌ A data de ida não pode ser no passado! Digite uma data futura (ex: `2026-11-15`):",
-                parse_mode="Markdown"
-            )
-            return ESCOLHER_DATA_IDA
-    except ValueError:
+    data_ida_iso = DateService.parse_data(texto)
+
+    if not data_ida_iso:
         await update.message.reply_text(
-            "❌ Formato inválido! Use `AAAA-MM-DD` (ex: `2026-11-15`):",
+            "❌ Data inválida!\n"
+            "Digite no formato brasileiro: `DD/MM/AAAA` (ex: `15/11/2026`) ou `DD/MM` (ex: `15/11`):",
             parse_mode="Markdown"
         )
         return ESCOLHER_DATA_IDA
 
-    context.user_data["novo_alerta"]["data_ida"] = texto
+    dt = datetime.strptime(data_ida_iso, "%Y-%m-%d").date()
+    if dt < datetime.now().date():
+        await update.message.reply_text(
+            "❌ A data de ida não pode ser no passado!\n"
+            "Digite uma data futura (ex: `15/11/2026` ou `15/11`):",
+            parse_mode="Markdown"
+        )
+        return ESCOLHER_DATA_IDA
+
+    context.user_data["novo_alerta"]["data_ida"] = data_ida_iso
+    data_formatada = DateService.formatar_br(data_ida_iso)
 
     if context.user_data["novo_alerta"].get("tipo") == "tipo_ida_volta":
         await update.message.reply_text(
-            f"✅ *Data de Ida:* {texto}\n\n"
-            f"📅 Agora digite a *Data de Volta* (formato `AAAA-MM-DD`, ex: `2026-11-20`):",
+            f"✅ *Data de Ida:* {data_formatada}\n\n"
+            f"📅 Agora digite a *Data de Volta* (ex: `20/11/2026` ou `20/11`):",
             parse_mode="Markdown"
         )
         return ESCOLHER_DATA_VOLTA
     else:
         context.user_data["novo_alerta"]["data_volta"] = None
         await update.message.reply_text(
-            f"✅ *Data de Ida:* {texto}\n\n"
+            f"✅ *Data de Ida:* {data_formatada}\n\n"
             f"💰 *Passo 5 de 5:* Qual o valor máximo (teto) em R$ que você aceita pagar?\n"
             f"_(Digite apenas o número, ex: `500` ou `2500`)_",
             parse_mode="Markdown"
@@ -163,27 +169,32 @@ async def receber_data_ida(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def receber_data_volta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
-    data_ida = context.user_data["novo_alerta"]["data_ida"]
-    try:
-        dt_volta = datetime.strptime(texto, "%Y-%m-%d")
-        dt_ida = datetime.strptime(data_ida, "%Y-%m-%d")
-        if dt_volta < dt_ida:
-            await update.message.reply_text(
-                "❌ A data de volta não pode ser anterior à data de ida! Digite novamente:",
-                parse_mode="Markdown"
-            )
-            return ESCOLHER_DATA_VOLTA
-    except ValueError:
+    data_volta_iso = DateService.parse_data(texto)
+
+    if not data_volta_iso:
         await update.message.reply_text(
-            "❌ Formato inválido! Use `AAAA-MM-DD` (ex: `2026-11-20`):",
+            "❌ Data inválida!\n"
+            "Digite no formato brasileiro: `DD/MM/AAAA` (ex: `20/11/2026`) ou `DD/MM` (ex: `20/11`):",
             parse_mode="Markdown"
         )
         return ESCOLHER_DATA_VOLTA
 
-    context.user_data["novo_alerta"]["data_volta"] = texto
+    data_ida_iso = context.user_data["novo_alerta"]["data_ida"]
+    dt_ida = datetime.strptime(data_ida_iso, "%Y-%m-%d").date()
+    dt_volta = datetime.strptime(data_volta_iso, "%Y-%m-%d").date()
+
+    if dt_volta < dt_ida:
+        await update.message.reply_text(
+            "❌ A data de volta não pode ser anterior à data de ida! Digite novamente:",
+            parse_mode="Markdown"
+        )
+        return ESCOLHER_DATA_VOLTA
+
+    context.user_data["novo_alerta"]["data_volta"] = data_volta_iso
+    data_formatada = DateService.formatar_br(data_volta_iso)
 
     await update.message.reply_text(
-        f"✅ *Data de Volta:* {texto}\n\n"
+        f"✅ *Data de Volta:* {data_formatada}\n\n"
         f"💰 *Passo 5 de 5:* Qual o valor máximo (teto) em R$ que você aceita pagar pela viagem completa?\n"
         f"_(Digite apenas o número, ex: `800` ou `4200`)_",
         parse_mode="Markdown"
@@ -213,7 +224,9 @@ async def receber_teto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     nome_origem = AirportService.nome_formatado(origem)
     nome_destino = AirportService.nome_formatado(destino)
-    tipo_str = f"Ida ({data_ida}) e Volta ({data_volta})" if data_volta else f"Somente Ida ({data_ida})"
+    ida_br = DateService.formatar_br(data_ida)
+    volta_br = DateService.formatar_br(data_volta)
+    tipo_str = f"Ida ({ida_br}) e Volta ({volta_br})" if data_volta else f"Somente Ida ({ida_br})"
 
     resumo = (
         "🎯 *Confirmação do Alerta de Preço:*\n\n"

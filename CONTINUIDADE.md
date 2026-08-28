@@ -87,10 +87,11 @@ PORT=8080
 
 ## 5. Roadmap de Sprints no GitHub (Issues e Milestones)
 
-* **🏃‍♂️ Sprint 1: UX Interativa & Dicionário de Cidades (Milestone 1) - [CONCLUÍDA NA BRANCH]**
+* **🏃‍♂️ Sprint 1: UX Interativa, Dicionário IATA & Datas BR (Milestone 1) - [CONCLUÍDA E MERGEADA NA MAIN]**
   - [#1](https://github.com/Italo61-dev/alerta-voos-telegram/issues/1): `feat(ux)` Ações rápidas com 1 clique nas listagens e notificações (implementado).
   - [#2](https://github.com/Italo61-dev/alerta-voos-telegram/issues/2): `feat(iata)` Dicionário inteligente de cidades para códigos IATA (implementado via `AirportService`).
   - [#3](https://github.com/Italo61-dev/alerta-voos-telegram/issues/3): `feat(ux)` Wizard conversacional guiado para criação de alerta (`/novo` implementado via `ConversationHandler`).
+  - `feat(ux)` Suporte nativo ao formato de data brasileiro (`DD/MM/AAAA` e `DD/MM`) via `DateService`.
 
 * **🤖 Sprint 2: IA com Google Gemini (Milestone 2) - [PRÓXIMA SPRINT]**
   - [#4](https://github.com/Italo61-dev/alerta-voos-telegram/issues/4): `feat(ai)` Criação de alertas por linguagem natural (texto livre).
@@ -111,5 +112,4 @@ PORT=8080
 ---
 
 ## 6. Próxima Etapa de Desenvolvimento
-* Fazer merge da branch `feature/sprint-1-ux-actions-dictionary` para `main` (disparando o deploy automático no Heroku).
 * Iniciar a **Sprint 2 (IA com Google Gemini)**: branch `feature/sprint-2-gemini-ai`.

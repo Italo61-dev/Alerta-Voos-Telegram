@@ -4,6 +4,7 @@ from src.models.alerta import Alerta
 from src.models.voo import Voo
 from src.models.usuario import Usuario
 from src.services.airport_service import AirportService
+from src.services.date_service import DateService
 
 class NotifierService:
     @staticmethod
@@ -15,8 +16,8 @@ class NotifierService:
             "📌 *Como cadastrar um alerta:*\n"
             "✨ `/novo` - *Assistente guiado passo a passo* (Mais fácil!)\n"
             "⚡ `/alerta ORIGEM DESTINO TETO DATA_IDA [DATA_VOLTA]` - Comando rápido em uma linha\n"
-            "_Exemplo:_ `/alerta São Paulo Miami 2500 2026-11-10`\n\n"
-            "💡 _Dica: Aceita siglas IATA (GRU, MIA, LIS) ou nomes de cidades (Rio, Orlando, Paris)!_\n\n"
+            "_Exemplo:_ `/alerta São Paulo Miami 2500 10/11/2026`\n\n"
+            "💡 _Dica: Aceita cidades (Rio, Orlando) e datas no padrão brasileiro (DD/MM/AAAA)!_\n\n"
             "📋 *Outros Comandos:*\n"
             "`/listar` - Ver seus alertas em cards interativos com botões\n"
             "`/testar` - Fazer uma checagem imediata de todos os seus alertas agora\n"
@@ -35,16 +36,18 @@ class NotifierService:
     def mensagem_alerta_cadastrado(alerta_id: int, alerta: Alerta) -> str:
         nome_origem = AirportService.nome_formatado(alerta.origem)
         nome_destino = AirportService.nome_formatado(alerta.destino)
+        ida_br = DateService.formatar_br(alerta.data_ida)
+        volta_br = DateService.formatar_br(alerta.data_volta)
 
         msg = (
             f"🎯 *Alerta #{alerta_id} cadastrado com sucesso!*\n\n"
             f"🛫 *Trecho:* `{alerta.origem}` ➔ `{alerta.destino}`\n"
             f"📍 _{nome_origem} ➔ {nome_destino}_\n"
             f"💰 *Preço Teto:* R$ {alerta.teto:.2f}\n"
-            f"📅 *Data de Ida:* {alerta.data_ida}\n"
+            f"📅 *Data de Ida:* {ida_br}\n"
         )
         if alerta.data_volta:
-            msg += f"📅 *Data de Volta:* {alerta.data_volta}\n"
+            msg += f"📅 *Data de Volta:* {volta_br}\n"
         msg += (
             f"\n🔍 Já estou monitorando! Quando o preço atingir ou ficar abaixo de *R$ {alerta.teto:.2f}*, "
             f"você receberá uma notificação aqui com link e botões de ação rápida."
@@ -55,7 +58,9 @@ class NotifierService:
     def mensagem_card_alerta(alerta: Alerta) -> str:
         nome_origem = AirportService.nome_formatado(alerta.origem)
         nome_destino = AirportService.nome_formatado(alerta.destino)
-        tipo = f"Ida ({alerta.data_ida}) e Volta ({alerta.data_volta})" if alerta.data_volta else f"Somente Ida ({alerta.data_ida})"
+        ida_br = DateService.formatar_br(alerta.data_ida)
+        volta_br = DateService.formatar_br(alerta.data_volta)
+        tipo = f"Ida ({ida_br}) e Volta ({volta_br})" if alerta.data_volta else f"Somente Ida ({ida_br})"
 
         msg = (
             f"✈️ *Alerta #{alerta.id}*\n"
@@ -84,7 +89,9 @@ class NotifierService:
         nome_origem = AirportService.nome_formatado(alerta.origem)
         nome_destino = AirportService.nome_formatado(alerta.destino)
         escala_str = "Voo direto" if voo.escalas == 0 else f"{voo.escalas} conexão(ões)"
-        datas = f"{alerta.data_ida}" + (f" até {alerta.data_volta}" if alerta.data_volta else "")
+        ida_br = DateService.formatar_br(alerta.data_ida)
+        volta_br = DateService.formatar_br(alerta.data_volta)
+        datas = f"{ida_br}" + (f" até {volta_br}" if volta_br else "")
 
         return (
             f"🚨 *PREÇO BAIXOU! META ATINGIDA!* 🚨\n\n"

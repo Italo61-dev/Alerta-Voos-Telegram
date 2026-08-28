@@ -6,6 +6,7 @@ from src.models.alerta import Alerta
 from src.services.notifier_service import NotifierService
 from src.services.flight_service import FlightService
 from src.services.airport_service import AirportService
+from src.services.date_service import DateService
 from src.bot.scheduler import AlertScheduler
 
 @requer_autorizacao
@@ -93,22 +94,34 @@ async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    try:
-        dt_ida = datetime.strptime(data_ida, "%Y-%m-%d")
-        if data_volta:
-            dt_volta = datetime.strptime(data_volta, "%Y-%m-%d")
-            if dt_volta < dt_ida:
-                await update.message.reply_text(
-                    "❌ *A data de volta não pode ser anterior à data de ida!*",
-                    parse_mode="Markdown"
-                )
-                return
-    except ValueError:
+    data_ida_iso = DateService.parse_data(data_ida)
+    if not data_ida_iso:
         await update.message.reply_text(
-            "❌ *Formato de data inválido!* Use o formato `AAAA-MM-DD` (ex: `2026-10-15`).",
+            f"❌ *Data de ida inválida:* `{data_ida}`\n\n"
+            "Use o formato do dia a dia (ex: `15/10/2026` ou `15/10`) ou `2026-10-15`.",
             parse_mode="Markdown"
         )
         return
+
+    data_volta_iso = None
+    if data_volta:
+        data_volta_iso = DateService.parse_data(data_volta)
+        if not data_volta_iso:
+            await update.message.reply_text(
+                f"❌ *Data de volta inválida:* `{data_volta}`\n\n"
+                "Use o formato do dia a dia (ex: `25/10/2026` ou `25/10`) ou `2026-10-25`.",
+                parse_mode="Markdown"
+            )
+            return
+
+        dt_ida = datetime.strptime(data_ida_iso, "%Y-%m-%d").date()
+        dt_volta = datetime.strptime(data_volta_iso, "%Y-%m-%d").date()
+        if dt_volta < dt_ida:
+            await update.message.reply_text(
+                "❌ *A data de volta não pode ser anterior à data de ida!*",
+                parse_mode="Markdown"
+            )
+            return
 
     alerta_repo = context.bot_data["alerta_repo"]
     novo_alerta = Alerta(
@@ -117,14 +130,14 @@ async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         origem=origem,
         destino=destino,
         teto=teto,
-        data_ida=data_ida,
-        data_volta=data_volta
+        data_ida=data_ida_iso,
+        data_volta=data_volta_iso
     )
     alerta_id = alerta_repo.salvar(novo_alerta)
     novo_alerta.id = alerta_id
 
     resposta = NotifierService.mensagem_alerta_cadastrado(alerta_id, novo_alerta)
-    link = FlightService.gerar_link_google_flights(origem, destino, data_ida, data_volta)
+    link = FlightService.gerar_link_google_flights(origem, destino, data_ida_iso, data_volta_iso)
     botoes = NotifierService.botoes_card_alerta(novo_alerta, link)
 
     await update.message.reply_text(resposta, reply_markup=botoes, parse_mode="Markdown")
