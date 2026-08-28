@@ -85,13 +85,32 @@ PORT=8080
 
 ---
 
-## 5. Próximos Passos Sugeridos
+## 5. Roadmap de Sprints no GitHub (Issues e Milestones)
 
-1. Fazer commit e push das melhorias arquiteturais para o GitHub/Heroku:
-   ```bash
-   git add .
-   git commit -m "refactor: adota Clean Architecture com camadas desacopladas e Repository Pattern"
-   git push origin main
-   ```
-2. Testar comandos no Telegram com sua conta de Admin.
-3. Avaliar próximas melhorias de produto (auto-resolver de cidades para IATA, botões inline de exclusão direta na lista, etc.).
+* **🏃‍♂️ Sprint 1: UX Interativa & Dicionário de Cidades (Milestone 1)**
+  - [#1](https://github.com/Italo61-dev/alerta-voos-telegram/issues/1): `feat(ux)` Ações rápidas com 1 clique nas listagens e notificações.
+  - [#2](https://github.com/Italo61-dev/alerta-voos-telegram/issues/2): `feat(iata)` Dicionário inteligente de cidades para códigos IATA.
+  - [#3](https://github.com/Italo61-dev/alerta-voos-telegram/issues/3): `feat(ux)` Wizard conversacional guiado para criação de alerta (/novo).
+
+* **🤖 Sprint 2: IA com Google Gemini (Milestone 2)**
+  - [#4](https://github.com/Italo61-dev/alerta-voos-telegram/issues/4): `feat(ai)` Criação de alertas por linguagem natural (texto livre).
+  - [#5](https://github.com/Italo61-dev/alerta-voos-telegram/issues/5): `feat(ai)` Transcrição e extração de alertas a partir de áudios do Telegram.
+  - [#6](https://github.com/Italo61-dev/alerta-voos-telegram/issues/6): `feat(ai)` Consultor de viagens inteligente para dicas de turismo e épocas baratas.
+  - [#13](https://github.com/Italo61-dev/alerta-voos-telegram/issues/13): `feat(ai)` Rate limit amigável e aviso de retorno quando atingir limite da IA (reset timer).
+
+* **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3)**
+  - [#7](https://github.com/Italo61-dev/alerta-voos-telegram/issues/7): `feat(data)` Histórico de preços por trecho persistido no banco.
+  - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges de super promoção).
+  - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão.
+
+* **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4)**
+  - [#10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10): `feat(admin)` Comando /broadcast para envio de promoções globais aos usuários.
+  - [#11](https://github.com/Italo61-dev/alerta-voos-telegram/issues/11): `feat(admin)` Painel de estatísticas e métricas do bot (/stats).
+  - [#12](https://github.com/Italo61-dev/alerta-voos-telegram/issues/12): `feat(fair-use)` Limite de alertas simultâneos por perfil de usuário.
+
+---
+
+## 6. Próxima Etapa de Desenvolvimento
+* Criar e navegar para a branch `feature/sprint-1-ux-actions-dictionary`.
+* Implementar Issue #1 (Ações de 1 clique) e Issue #2 (Dicionário IATA).
+* Abrir Pull Request para merge na branch `main`.
