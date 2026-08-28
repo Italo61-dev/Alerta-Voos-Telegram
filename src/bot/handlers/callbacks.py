@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from src.services.flight_service import FlightService
 from src.services.notifier_service import NotifierService
+from src.services.date_service import DateService
 
 async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -129,7 +130,7 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
             data_volta=alerta.data_volta
         )
 
-        agora = datetime.now().strftime("%H:%M:%S")
+        agora = DateService.hora_formatada_br()
 
         if voos:
             melhor_voo = voos[0]

@@ -139,7 +139,7 @@ async def receber_data_ida(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ESCOLHER_DATA_IDA
 
     dt = datetime.strptime(data_ida_iso, "%Y-%m-%d").date()
-    if dt < datetime.now().date():
+    if dt < DateService.hoje_brasilia():
         await update.message.reply_text(
             "❌ A data de ida não pode ser no passado!\n"
             "Digite uma data futura (ex: `15/11/2026` ou `15/11`):",

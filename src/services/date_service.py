@@ -1,19 +1,30 @@
 from datetime import datetime, date
 from typing import Optional
+from zoneinfo import ZoneInfo
+
+FUSO_BRASILIA = ZoneInfo("America/Sao_Paulo")
 
 class DateService:
-    @staticmethod
-    def parse_data(texto: str) -> Optional[str]:
+    @classmethod
+    def agora_brasilia(cls) -> datetime:
+        """Retorna o datetime atual no fuso horário de Brasília (UTC-3)."""
+        return datetime.now(FUSO_BRASILIA)
+
+    @classmethod
+    def hoje_brasilia(cls) -> date:
+        """Retorna a data atual no fuso horário de Brasília."""
+        return cls.agora_brasilia().date()
+
+    @classmethod
+    def hora_formatada_br(cls) -> str:
+        """Retorna o horário atual de Brasília formatado como HH:MM:SS."""
+        return cls.agora_brasilia().strftime("%H:%M:%S")
+
+    @classmethod
+    def parse_data(cls, texto: str) -> Optional[str]:
         """
         Converte datas informadas em múltiplos formatos humanos (brasileiro ou ISO)
         para o formato padrão do Google Flights/banco: 'AAAA-MM-DD'.
-        
-        Suporta:
-        - DD/MM/AAAA (ex: 15/11/2026)
-        - DD/MM/AA   (ex: 15/11/26)
-        - DD/MM      (ex: 15/11 - calcula ano atual ou próximo se já passou)
-        - DD-MM-AAAA (ex: 15-11-2026)
-        - AAAA-MM-DD (ex: 2026-11-15 - formato ISO para desenvolvedores)
         """
         if not texto:
             return None
@@ -30,7 +41,7 @@ class DateService:
 
         texto_limpo = texto.replace(".", "/").replace("-", "/")
         partes = texto_limpo.split("/")
-        hoje = date.today()
+        hoje = cls.hoje_brasilia()
 
         # 2. Formato DD/MM (dia e mês sem ano)
         if len(partes) == 2:
