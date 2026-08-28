@@ -22,7 +22,8 @@ from src.bot.handlers.admin_handlers import (
     aprovar_command,
     bloquear_command,
 )
-from src.bot.handlers.callbacks import callback_aprovacao
+from src.bot.handlers.callbacks import callback_geral
+from src.bot.handlers.wizard_handlers import criar_wizard_handler
 from src.bot.scheduler import AlertScheduler
 
 def create_bot_app(config: Config) -> Application:
@@ -41,7 +42,10 @@ def create_bot_app(config: Config) -> Application:
     app.bot_data["usuario_repo"] = usuario_repo
     app.bot_data["alerta_repo"] = alerta_repo
 
-    # Handlers de Usuário
+    # 1. Wizard Guiado (ConversationHandler)
+    app.add_handler(criar_wizard_handler())
+
+    # 2. Handlers de Usuário
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("ajuda", ajuda_command))
     app.add_handler(CommandHandler("alerta", alerta_command))
@@ -49,12 +53,12 @@ def create_bot_app(config: Config) -> Application:
     app.add_handler(CommandHandler("remover", remover_command))
     app.add_handler(CommandHandler("testar", testar_command))
 
-    # Handlers de Administrador
+    # 3. Handlers de Administrador
     app.add_handler(CommandHandler("usuarios", usuarios_command))
     app.add_handler(CommandHandler("aprovar", aprovar_command))
     app.add_handler(CommandHandler("bloquear", bloquear_command))
 
-    # Callbacks de Botões Inline
-    app.add_handler(CallbackQueryHandler(callback_aprovacao))
+    # 4. Callbacks de Botões Inline Gerais
+    app.add_handler(CallbackQueryHandler(callback_geral))
 
     return app
