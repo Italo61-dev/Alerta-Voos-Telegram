@@ -41,7 +41,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/plain; charset=utf-8")
         self.end_headers()
-        self.wfile.write(b"✈️ Bot de Alerta de Passagens Online e Monitorando!")
+        self.wfile.write("✈️ Bot de Alerta de Passagens Online e Monitorando!".encode('utf-8'))
 
     def log_message(self, format, *args):
         pass  # Silencia logs de health check para nao poluir o terminal
