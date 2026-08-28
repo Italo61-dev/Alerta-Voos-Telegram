@@ -20,13 +20,24 @@ ENV_PATH = BASE_DIR / ".env"
 DB_PATH = BASE_DIR / "alertas.db"
 
 def carregar_token():
+    # 1. Tenta carregar do arquivo .env (para desenvolvimento local)
     if ENV_PATH.exists():
         with open(ENV_PATH, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line.startswith("TELEGRAM_TOKEN="):
-                    return line.split("=", 1)[1].strip()
-    return os.environ.get("TELEGRAM_TOKEN", "8786563067:AAEZ-FItE9b_1KBsjUbP3MUZuta80lh05uc")
+                    val = line.split("=", 1)[1].strip().strip("\"'")
+                    if val:
+                        return val
+
+    # 2. Tenta ler das variáveis de ambiente (Heroku, Render, etc.)
+    token = os.environ.get("TELEGRAM_TOKEN")
+    if not token:
+        raise ValueError(
+            "TELEGRAM_TOKEN não configurado! "
+            "Defina a variável nas Config Vars do Heroku ou crie um arquivo .env localmente."
+        )
+    return token
 
 TELEGRAM_TOKEN = carregar_token()
 
