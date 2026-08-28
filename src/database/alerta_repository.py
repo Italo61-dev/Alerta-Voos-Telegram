@@ -108,3 +108,31 @@ class AlertaRepository:
         except Exception as e:
             logging.error(f"Erro ao listar alertas ativos para checagem: {e}")
             return []
+
+    def obter_por_id(self, alerta_id: int) -> Optional[Alerta]:
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, chat_id, origem, destino, teto, data_ida, data_volta, ultimo_preco, ativo, criado_em
+                    FROM alertas
+                    WHERE id = ?
+                """, (alerta_id,))
+                r = cursor.fetchone()
+                if not r:
+                    return None
+                return Alerta(
+                    id=r[0],
+                    chat_id=r[1],
+                    origem=r[2],
+                    destino=r[3],
+                    teto=float(r[4]),
+                    data_ida=r[5],
+                    data_volta=r[6],
+                    ultimo_preco=float(r[7]) if r[7] is not None else None,
+                    ativo=bool(r[8] == 1),
+                    criado_em=str(r[9]) if r[9] else None
+                )
+        except Exception as e:
+            logging.error(f"Erro ao obter alerta #{alerta_id}: {e}")
+            return None

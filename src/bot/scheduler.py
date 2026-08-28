@@ -48,9 +48,11 @@ class AlertScheduler:
                     mensagem = NotifierService.mensagem_oferta_encontrada(alerta, melhor_voo, link)
 
                     try:
+                        botoes = NotifierService.botoes_notificacao_oferta(alerta.id, link)
                         await self.bot.send_message(
                             chat_id=alerta.chat_id,
                             text=mensagem,
+                            reply_markup=botoes,
                             parse_mode="Markdown"
                         )
                         logging.info(f"Notificação disparada com sucesso para alerta #{alerta.id} (R$ {preco_atual:.2f})")
