@@ -28,4 +28,4 @@ Bot do Telegram em Python que monitora preços de voos diretamente pelo Google F
 - `TELEGRAM_TOKEN`: Token do bot gerado pelo @BotFather.
 - `TURSO_DATABASE_URL`: URL do banco de dados Turso (ex: `libsql://...turso.io`).
 - `TURSO_AUTH_TOKEN`: Token de autenticação do Turso.
-- `ADMIN_ID`: ID numérico do Telegram do administrador (`5599506814`).
+- `ADMIN_ID`: ID numérico do Telegram do administrador (ex: `123456789`, obtido via @userinfobot).

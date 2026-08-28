@@ -11,7 +11,7 @@
 * **Hospedagem:** Heroku / Render / VPS (rodando como `worker` via `Procfile`).
 * **Banco de Dados:** **Turso Cloud (libSQL / SQLite em nuvem)** com fallback automático para SQLite local (`alertas.db`).
 * **Consulta de Preços:** `fast-flights` (Google Flights scraping em BRL sem custos de API, suporte nacional e internacional).
-* **Controle de Acesso:** Bot privado com painel e aprovação interativa pelo Administrador (ID: `5599506814`).
+* **Controle de Acesso:** Bot privado com painel e aprovação interativa pelo Administrador (ID configurado via `ADMIN_ID`).
 
 ---
 
@@ -76,7 +76,7 @@ Configurar no painel do Heroku (`Config Vars`) ou no `.env` local:
 
 ```env
 TELEGRAM_TOKEN=seu_token_gerado_no_botfather
-ADMIN_ID=5599506814
+ADMIN_ID=123456789
 TURSO_DATABASE_URL=libsql://seu-banco-turso.io
 TURSO_AUTH_TOKEN=seu_token_gerado_no_turso
 CHECK_INTERVAL_HOURS=3

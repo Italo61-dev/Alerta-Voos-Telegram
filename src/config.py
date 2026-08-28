@@ -39,11 +39,11 @@ def load_config() -> Config:
             "Defina a variável no arquivo .env ou nas variáveis de ambiente do sistema/Heroku."
         )
 
-    admin_id_raw = os.environ.get("ADMIN_ID", "5599506814").strip()
+    admin_id_raw = os.environ.get("ADMIN_ID", "0").strip()
     try:
         admin_id = int(admin_id_raw)
     except ValueError:
-        admin_id = 5599506814
+        admin_id = 0
 
     turso_url = os.environ.get("TURSO_DATABASE_URL", "").strip() or None
     turso_token = os.environ.get("TURSO_AUTH_TOKEN", "").strip() or None
