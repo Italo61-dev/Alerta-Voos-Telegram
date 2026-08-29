@@ -93,13 +93,13 @@ PORT=8080
   - [#3](https://github.com/Italo61-dev/alerta-voos-telegram/issues/3): `feat(ux)` Wizard conversacional guiado para criação de alerta (`/novo` implementado via `ConversationHandler`).
   - `feat(ux)` Suporte nativo ao formato de data brasileiro (`DD/MM/AAAA` e `DD/MM`) via `DateService`.
 
-* **🤖 Sprint 2: IA com Google Gemini (Milestone 2) - [PRÓXIMA SPRINT]**
-  - [#4](https://github.com/Italo61-dev/alerta-voos-telegram/issues/4): `feat(ai)` Criação de alertas por linguagem natural (texto livre).
+* **🤖 Sprint 2: IA com Google Gemini (Milestone 2) - [CONCLUÍDA NA BRANCH]**
+  - [#4](https://github.com/Italo61-dev/alerta-voos-telegram/issues/4): `feat(ai)` Criação de alertas por linguagem natural (texto livre com confirmação).
   - [#5](https://github.com/Italo61-dev/alerta-voos-telegram/issues/5): `feat(ai)` Transcrição e extração de alertas a partir de áudios do Telegram.
   - [#6](https://github.com/Italo61-dev/alerta-voos-telegram/issues/6): `feat(ai)` Consultor de viagens inteligente para dicas de turismo e épocas baratas.
   - [#13](https://github.com/Italo61-dev/alerta-voos-telegram/issues/13): `feat(ai)` Rate limit amigável e aviso de retorno quando atingir limite da IA (reset timer).
 
-* **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3)**
+* **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3) - [PRÓXIMA SPRINT]**
   - [#7](https://github.com/Italo61-dev/alerta-voos-telegram/issues/7): `feat(data)` Histórico de preços por trecho persistido no banco.
   - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges de super promoção).
   - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão.
@@ -112,4 +112,5 @@ PORT=8080
 ---
 
 ## 6. Próxima Etapa de Desenvolvimento
-* Iniciar a **Sprint 2 (IA com Google Gemini)**: branch `feature/sprint-2-gemini-ai`.
+* Fazer merge da branch `feature/sprint-2-gemini-ai` para `main` (disparando o deploy no Heroku).
+* Iniciar a **Sprint 3 (Inteligência de Preços & Histórico)**: branch `feature/sprint-3-price-intelligence`.

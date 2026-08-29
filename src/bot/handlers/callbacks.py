@@ -154,5 +154,39 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("⚠️ Nenhum voo encontrado para este trecho no Google Flights.", show_alert=True)
 
+    # 5. Confirmação de Alerta via IA
+    elif data == "ai_confirmar":
+        await query.answer()
+        dados = context.user_data.pop("pendente_alerta_ia", None)
+        if not dados:
+            await query.edit_message_text("⚠️ Os dados deste alerta expiraram. Envie sua frase novamente!")
+            return
+
+        from src.models.alerta import Alerta
+        novo_alerta = Alerta(
+            id=None,
+            chat_id=user_id,
+            origem=dados["origem"],
+            destino=dados["destino"],
+            teto=dados["teto"],
+            data_ida=dados["data_ida"],
+            data_volta=dados.get("data_volta")
+        )
+        alerta_id = alerta_repo.salvar(novo_alerta)
+        novo_alerta.id = alerta_id
+
+        link = FlightService.gerar_link_google_flights(
+            dados["origem"], dados["destino"], dados["data_ida"], dados.get("data_volta")
+        )
+        botoes = NotifierService.botoes_card_alerta(novo_alerta, link)
+        resposta = NotifierService.mensagem_alerta_cadastrado(alerta_id, novo_alerta)
+
+        await query.edit_message_text(resposta, reply_markup=botoes, parse_mode="Markdown")
+
+    elif data == "ai_cancelar":
+        await query.answer()
+        context.user_data.pop("pendente_alerta_ia", None)
+        await query.edit_message_text("❌ Alerta cancelado.")
+
 # Alias para retrocompatibilidade
 callback_aprovacao = callback_geral
