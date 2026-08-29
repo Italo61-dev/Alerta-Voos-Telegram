@@ -120,7 +120,10 @@ async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         "Você é um transcritor em português. Transcreva fielmente as palavras faladas neste áudio. "
                         "Se for apenas ruído, silêncio ou bipe sem palavras, responda apenas [SEM_FALA]. "
                         "Retorne APENAS o texto falado, sem aspas, sem introduções ou explicações."
-                    ]
+                    ],
+                    config=types.GenerateContentConfig(
+                        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)
+                    )
                 )
                 if resp_tr.text:
                     texto_candidato = resp_tr.text.strip()
