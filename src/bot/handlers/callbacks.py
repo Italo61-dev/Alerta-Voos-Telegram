@@ -243,5 +243,89 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await query.message.reply_text(resumo, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
+    # 7. Menu e Ações Administrativas (/admin)
+    elif data == "admin_menu":
+        await query.answer()
+        if user_id != config.admin_id:
+            await query.answer("⛔ Acesso restrito ao administrador.", show_alert=True)
+            return
+        texto = NotifierService.mensagem_menu_admin()
+        botoes = NotifierService.botoes_menu_admin()
+        await query.edit_message_text(texto, reply_markup=botoes, parse_mode="Markdown")
+
+    elif data == "admin_stats":
+        await query.answer("Atualizando métricas...")
+        if user_id != config.admin_id:
+            await query.answer("⛔ Acesso restrito ao administrador.", show_alert=True)
+            return
+        historico_repo = context.bot_data.get("historico_repo")
+        metricas_usuarios = usuario_repo.obter_metricas()
+        metricas_alertas = alerta_repo.obter_metricas()
+        metricas_historico = historico_repo.obter_metricas() if historico_repo else {}
+
+        texto = NotifierService.mensagem_painel_stats(
+            metricas_usuarios=metricas_usuarios,
+            metricas_alertas=metricas_alertas,
+            metricas_historico=metricas_historico
+        )
+        botoes = NotifierService.botoes_painel_stats()
+        await query.edit_message_text(texto, reply_markup=botoes, parse_mode="Markdown")
+
+    elif data == "admin_usuarios":
+        await query.answer()
+        if user_id != config.admin_id:
+            await query.answer("⛔ Acesso restrito ao administrador.", show_alert=True)
+            return
+        usuarios = usuario_repo.listar_todos()
+        texto = NotifierService.mensagem_lista_usuarios(usuarios, config.admin_id)
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = [[InlineKeyboardButton("🔙 Menu Admin", callback_data="admin_menu")]]
+        await query.edit_message_text(texto, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+    elif data == "admin_broadcast_novidades":
+        await query.answer("Iniciando transmissão...")
+        if user_id != config.admin_id:
+            await query.answer("⛔ Acesso restrito ao administrador.", show_alert=True)
+            return
+        from src.services.broadcast_service import BroadcastService
+        destinatarios = usuario_repo.listar_autorizados()
+        if not destinatarios:
+            await query.edit_message_text("⚠️ Nenhum usuário autorizado encontrado para envio.")
+            return
+
+        mensagem_novidades = BroadcastService.formatar_mensagem_novidades()
+        resultado = await BroadcastService.enviar_broadcast(
+            bot=context.bot,
+            destinatarios=destinatarios,
+            mensagem=mensagem_novidades
+        )
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = [[InlineKeyboardButton("🔙 Menu Admin", callback_data="admin_menu")]]
+        await query.edit_message_text(
+            f"🚀 *Novidades Transmitidas com Sucesso!*\n\n"
+            f"👥 *Total de destinatários:* {resultado['total']}\n"
+            f"✅ *Enviados com sucesso:* {resultado['sucessos']}\n"
+            f"❌ *Falhas na entrega:* {resultado['falhas']}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+
+    elif data == "admin_testar":
+        await query.answer("Iniciando checagem agora...")
+        if user_id != config.admin_id:
+            await query.answer("⛔ Acesso restrito ao administrador.", show_alert=True)
+            return
+        from src.bot.scheduler import AlertScheduler
+        scheduler = AlertScheduler(context.bot, config, alerta_repo)
+        notificados = await scheduler.verificar_alertas()
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = [[InlineKeyboardButton("🔙 Menu Admin", callback_data="admin_menu")]]
+        await query.edit_message_text(
+            f"✔️ *Checagem concluída com sucesso!*\n\n"
+            f"🔔 Notificações de ofertas enviadas: *{notificados}*",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+
 # Alias para retrocompatibilidade
 callback_aprovacao = callback_geral

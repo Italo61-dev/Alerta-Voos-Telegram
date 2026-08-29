@@ -22,6 +22,8 @@ Bot do Telegram em Python que monitora preços de voos diretamente pelo Google F
 - *Mensagens de Texto e Áudio com IA:* Fale ou envie áudio naturalmente com o bot!
 
 ### Administrador:
+- `/admin`: Central de comando interativa em botões (Estatísticas, Usuários, Transmissão e Checagem).
+- `/stats`: Painel consolidado de métricas (usuários, alertas ativos, histórico de cotações e top rotas).
 - `/usuarios`: Lista usuários registrados, status e ações.
 - `/aprovar ID`: Aprova manualmente o acesso de um usuário.
 - `/bloquear ID`: Bloqueia o acesso de um usuário.

@@ -140,3 +140,39 @@ class AlertaRepository:
         except Exception as e:
             logging.error(f"Erro ao obter alerta #{alerta_id}: {e}")
             return None
+
+    def obter_metricas(self) -> dict:
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) as total_historico,
+                        SUM(CASE WHEN ativo = 1 THEN 1 ELSE 0 END) as ativos
+                    FROM alertas
+                """)
+                row = cursor.fetchone()
+                total_historico = row[0] or 0
+                ativos = row[1] or 0
+
+                cursor.execute("""
+                    SELECT origem, destino, COUNT(*) as qtd
+                    FROM alertas
+                    WHERE ativo = 1
+                    GROUP BY origem, destino
+                    ORDER BY qtd DESC
+                    LIMIT 5
+                """)
+                top_trechos = [
+                    {"origem": r[0], "destino": r[1], "quantidade": r[2]}
+                    for r in cursor.fetchall()
+                ]
+
+                return {
+                    "total_historico": total_historico,
+                    "ativos": ativos,
+                    "top_trechos": top_trechos
+                }
+        except Exception as e:
+            logging.error(f"Erro ao obter métricas de alertas: {e}")
+            return {"total_historico": 0, "ativos": 0, "top_trechos": []}

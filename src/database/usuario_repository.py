@@ -88,3 +88,26 @@ class UsuarioRepository:
         except Exception as e:
             logging.error(f"Erro ao listar usuários: {e}")
             return []
+
+    def obter_metricas(self) -> dict:
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN autorizado = 1 THEN 1 ELSE 0 END) as autorizados,
+                        SUM(CASE WHEN autorizado = 0 THEN 1 ELSE 0 END) as pendentes
+                    FROM usuarios
+                """)
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        "total": row[0] or 0,
+                        "autorizados": row[1] or 0,
+                        "pendentes": row[2] or 0
+                    }
+                return {"total": 0, "autorizados": 0, "pendentes": 0}
+        except Exception as e:
+            logging.error(f"Erro ao obter métricas de usuários: {e}")
+            return {"total": 0, "autorizados": 0, "pendentes": 0}

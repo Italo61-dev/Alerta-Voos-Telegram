@@ -157,3 +157,23 @@ class HistoricoRepository:
         except Exception as e:
             logging.error(f"Erro ao listar histórico do alerta {alerta_id}: {e}")
             return []
+
+    def obter_metricas(self) -> dict:
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM historico_precos")
+                row = cursor.fetchone()
+                total_cotacoes = row[0] if row else 0
+
+                cursor.execute("SELECT COUNT(DISTINCT origem || '-' || destino) FROM historico_precos")
+                row_dist = cursor.fetchone()
+                trechos_unicos = row_dist[0] if row_dist else 0
+
+                return {
+                    "total_cotacoes": total_cotacoes,
+                    "trechos_unicos": trechos_unicos
+                }
+        except Exception as e:
+            logging.error(f"Erro ao obter métricas de histórico: {e}")
+            return {"total_cotacoes": 0, "trechos_unicos": 0}

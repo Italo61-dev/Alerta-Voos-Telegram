@@ -158,3 +158,28 @@ async def broadcast_novidades_command(update: Update, context: ContextTypes.DEFA
         f"❌ *Falhas na entrega:* {resultado['falhas']}",
         parse_mode="Markdown"
     )
+
+@requer_admin
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    usuario_repo = context.bot_data["usuario_repo"]
+    alerta_repo = context.bot_data["alerta_repo"]
+    historico_repo = context.bot_data.get("historico_repo")
+
+    metricas_usuarios = usuario_repo.obter_metricas()
+    metricas_alertas = alerta_repo.obter_metricas()
+    metricas_historico = historico_repo.obter_metricas() if historico_repo else {}
+
+    texto = NotifierService.mensagem_painel_stats(
+        metricas_usuarios=metricas_usuarios,
+        metricas_alertas=metricas_alertas,
+        metricas_historico=metricas_historico
+    )
+    botoes = NotifierService.botoes_painel_stats()
+
+    await update.message.reply_text(texto, reply_markup=botoes, parse_mode="Markdown")
+
+@requer_admin
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = NotifierService.mensagem_menu_admin()
+    botoes = NotifierService.botoes_menu_admin()
+    await update.message.reply_text(texto, reply_markup=botoes, parse_mode="Markdown")

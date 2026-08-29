@@ -28,6 +28,8 @@ from src.bot.handlers.admin_handlers import (
     bloquear_command,
     broadcast_command,
     broadcast_novidades_command,
+    stats_command,
+    admin_command,
 )
 from src.bot.handlers.callbacks import callback_geral
 from src.bot.handlers.wizard_handlers import criar_wizard_handler
@@ -66,6 +68,8 @@ def create_bot_app(config: Config) -> Application:
     app.add_handler(CommandHandler("testar", testar_command))
 
     # 3. Handlers de Administrador
+    app.add_handler(CommandHandler("admin", admin_command))
+    app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("usuarios", usuarios_command))
     app.add_handler(CommandHandler("aprovar", aprovar_command))
     app.add_handler(CommandHandler("bloquear", bloquear_command))

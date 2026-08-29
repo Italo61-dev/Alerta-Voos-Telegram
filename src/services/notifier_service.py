@@ -31,6 +31,8 @@ class NotifierService:
         if is_admin:
             msg += (
                 "\n\n👑 *Comandos de Administrador:*\n"
+                "`/admin` - Painel de controle central interativo\n"
+                "`/stats` - Painel de estatísticas e métricas de uso\n"
                 "`/usuarios` - Ver usuários e solicitações\n"
                 "`/aprovar ID` - Aprovar acesso manualmente\n"
                 "`/bloquear ID` - Bloquear acesso de um usuário\n"
@@ -204,3 +206,67 @@ class NotifierService:
                 msg += f"  _Ações:_ `/aprovar {u.user_id}` | `/bloquear {u.user_id}`\n"
             msg += "\n"
         return msg
+
+    @staticmethod
+    def mensagem_painel_stats(
+        metricas_usuarios: dict,
+        metricas_alertas: dict,
+        metricas_historico: dict
+    ) -> str:
+        msg = (
+            "📊 *PAINEL DE ESTATÍSTICAS DO BOT* 👑\n\n"
+            "👥 *Usuários Cadastrados:*\n"
+            f"• Total Geral: *{metricas_usuarios.get('total', 0)}*\n"
+            f"• Autorizados / Ativos: *{metricas_usuarios.get('autorizados', 0)}*\n"
+            f"• Pendentes / Bloqueados: *{metricas_usuarios.get('pendentes', 0)}*\n\n"
+            "✈️ *Monitoramento de Voos:*\n"
+            f"• Alertas Ativos no Momento: *{metricas_alertas.get('ativos', 0)}*\n"
+            f"• Total Histórico de Alertas: *{metricas_alertas.get('total_historico', 0)}*\n\n"
+            "📈 *Histórico de Cotações (Google Flights):*\n"
+            f"• Total de Cotações Registradas: *{metricas_historico.get('total_cotacoes', 0):,}*\n"
+            f"• Trechos Únicos Cotados: *{metricas_historico.get('trechos_unicos', 0)}*\n"
+        ).replace(",", ".")
+
+        top_trechos = metricas_alertas.get("top_trechos", [])
+        if top_trechos:
+            msg += "\n🏆 *Top Trechos Mais Procurados:*\n"
+            emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
+            for idx, item in enumerate(top_trechos):
+                em = emojis[idx] if idx < len(emojis) else "✈️"
+                orig = item["origem"]
+                dest = item["destino"]
+                qtd = item["quantidade"]
+                msg += f"{em} `{orig}` ➔ `{dest}`: *{qtd}* alerta(s)\n"
+
+        return msg
+
+    @staticmethod
+    def botoes_painel_stats() -> InlineKeyboardMarkup:
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Atualizar Métricas", callback_data="admin_stats"),
+                InlineKeyboardButton("🔙 Menu Admin", callback_data="admin_menu")
+            ]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
+    @staticmethod
+    def mensagem_menu_admin() -> str:
+        return (
+            "👑 *CENTRAL DE CONTROLE DO ADMINISTRADOR*\n\n"
+            "Escolha uma ação rápida abaixo para gerenciar o bot sem misturar com suas conversas pessoais:"
+        )
+
+    @staticmethod
+    def botoes_menu_admin() -> InlineKeyboardMarkup:
+        keyboard = [
+            [
+                InlineKeyboardButton("📊 Estatísticas (/stats)", callback_data="admin_stats"),
+                InlineKeyboardButton("👥 Usuários (/usuarios)", callback_data="admin_usuarios")
+            ],
+            [
+                InlineKeyboardButton("📢 Disparar Novidades", callback_data="admin_broadcast_novidades"),
+                InlineKeyboardButton("⚡ Checar Voos Agora", callback_data="admin_testar")
+            ]
+        ]
+        return InlineKeyboardMarkup(keyboard)
