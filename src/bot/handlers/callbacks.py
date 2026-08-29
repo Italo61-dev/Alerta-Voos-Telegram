@@ -158,6 +158,7 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "ai_confirmar":
         await query.answer()
         dados = context.user_data.pop("pendente_alerta_ia", None)
+        context.user_data.pop("memoria_viagem", None)
         if not dados:
             await query.edit_message_text("⚠️ Os dados deste alerta expiraram. Envie sua frase novamente!")
             return
@@ -186,6 +187,7 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "ai_cancelar":
         await query.answer()
         context.user_data.pop("pendente_alerta_ia", None)
+        context.user_data.pop("memoria_viagem", None)
         await query.edit_message_text("❌ Alerta cancelado.")
 
     # 6. Criar Alerta a partir de Pesquisa Instantânea

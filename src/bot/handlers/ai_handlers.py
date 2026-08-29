@@ -9,25 +9,58 @@ from src.services.flight_service import FlightService
 from src.services.notifier_service import NotifierService
 
 async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_TYPE, resultado: DadosAlertaIA):
+    # 0. Cancelar / Limpar memória
+    if resultado.intencao == "cancelar":
+        context.user_data.pop("memoria_viagem", None)
+        context.user_data.pop("pendente_alerta_ia", None)
+        await update.message.reply_text(
+            "🧹 *Conversa reiniciada!* Limpei a memória anterior. O que você gostaria de pesquisar ou monitorar agora?",
+            parse_mode="Markdown"
+        )
+        return
+
     # 1. Tratamento de Rate Limit
     if resultado.intencao == "rate_limit":
-        await update.message.reply_text(resultado.resposta_direta or "Limite atingido.", parse_mode="Markdown")
+        await update.message.reply_text(resultado.resposta_direta or "Limite temporário de IA atingido.", parse_mode="Markdown")
         return
 
-    # 2. Resposta de consultor de viagens
+    # 2. Atualiza a memória contínua do usuário no context.user_data
+    memoria = context.user_data.get("memoria_viagem", {})
+    if resultado.origem:
+        memoria["origem"] = resultado.origem
+    if resultado.destino:
+        memoria["destino"] = resultado.destino
+    if resultado.data_ida:
+        memoria["data_ida"] = resultado.data_ida
+    if resultado.data_volta:
+        memoria["data_volta"] = resultado.data_volta
+    if resultado.teto:
+        memoria["teto"] = resultado.teto
+    context.user_data["memoria_viagem"] = memoria
+
+    # 3. Resposta de consultor de viagens (dica de turismo)
     if resultado.intencao == "duvida_viagem":
-        await update.message.reply_text(resultado.resposta_direta or "Posso te ajudar com dúvidas de viagem!", parse_mode="Markdown")
+        await update.message.reply_text(resultado.resposta_direta or "Posso te ajudar com dicas de viagem!", parse_mode="Markdown")
         return
 
-    # 3. Pesquisa Instantânea de Voos (Top 3 Melhores Opções)
-    if resultado.intencao == "pesquisar_voos":
-        origem_iata = AirportService.resolver(resultado.origem or "")
-        destino_iata = AirportService.resolver(resultado.destino or "")
+    # Resolve os dados consolidados da memória
+    origem_str = memoria.get("origem")
+    destino_str = memoria.get("destino")
+    data_ida_str = memoria.get("data_ida")
+    data_volta_str = memoria.get("data_volta")
+    teto_val = memoria.get("teto")
 
-        if not origem_iata or not destino_iata:
+    origem_iata = AirportService.resolver(origem_str or "") if origem_str else None
+    destino_iata = AirportService.resolver(destino_str or "") if destino_str else None
+    data_ida_iso = DateService.parse_data(data_ida_str or "") if data_ida_str else None
+    data_volta_iso = DateService.parse_data(data_volta_str or "") if data_volta_str else None
+
+    # 4. Pesquisa Instantânea de Voos (Top 3 Melhores Opções)
+    if resultado.intencao == "pesquisar_voos":
+        if not (origem_iata and destino_iata and data_ida_iso):
             await update.message.reply_text(
                 resultado.resposta_direta or 
-                "🤔 Para pesquisar os voos, informe a cidade de origem e destino! (Ex: 'Voos de SP pra Salvador dia 15/11')",
+                "🤔 Para pesquisar os voos, informe a cidade de origem, destino e data! (Ex: 'Saindo de SP dia 15/11')",
                 parse_mode="Markdown"
             )
             return
@@ -35,16 +68,6 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
         if origem_iata == destino_iata:
             await update.message.reply_text("⚠️ A origem e o destino não podem ser iguais!", parse_mode="Markdown")
             return
-
-        data_ida_iso = DateService.parse_data(resultado.data_ida or "")
-        if not data_ida_iso:
-            await update.message.reply_text(
-                "📅 Para qual data você gostaria de pesquisar esses voos? (Ex: `15/11/2026` ou `15/11`):",
-                parse_mode="Markdown"
-            )
-            return
-
-        data_volta_iso = DateService.parse_data(resultado.data_volta or "") if resultado.data_volta else None
 
         status_msg = await update.message.reply_text("🔍 *Consultando o Google Flights em tempo real...*", parse_mode="Markdown")
 
@@ -67,8 +90,8 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
         except Exception:
             pass
 
-        # Salva o trecho pesquisado em context.user_data caso o usuário queira criar alerta pelo botão
-        melhor_preco = voos[0].preco if voos else (resultado.teto or 1000.0)
+        # Salva o trecho pesquisado em pendente_alerta_ia caso queira criar alerta
+        melhor_preco = voos[0].preco if voos else (teto_val or 1000.0)
         context.user_data["pendente_alerta_ia"] = {
             "origem": origem_iata,
             "destino": destino_iata,
@@ -76,6 +99,9 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
             "data_volta": data_volta_iso,
             "teto": float(melhor_preco),
         }
+
+        # Concluiu a busca imediata: limpa a memória temporária
+        context.user_data.pop("memoria_viagem", None)
 
         texto_resultado = NotifierService.mensagem_resultado_busca(
             origem=origem_iata,
@@ -88,75 +114,30 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text(texto_resultado, reply_markup=botoes, parse_mode="Markdown")
         return
 
-    # 4. Se faltar dados fundamentais para criar alerta
-    if resultado.resposta_direta and not (resultado.origem and resultado.destino and resultado.teto and resultado.data_ida):
-        await update.message.reply_text(resultado.resposta_direta, parse_mode="Markdown")
-        return
-
-    # 5. Processamento de Criação de Alerta
-    origem_iata = AirportService.resolver(resultado.origem or "")
-    destino_iata = AirportService.resolver(resultado.destino or "")
-
-    if not origem_iata:
+    # 5. Se ainda faltar algum dado para cadastrar o alerta (origem, destino, data ou teto)
+    if not (origem_iata and destino_iata and data_ida_iso and teto_val):
         await update.message.reply_text(
-            f"🤔 Entendi que a origem é *{resultado.origem}*, mas não encontrei o aeroporto correspondente.\n"
-            "Poderia informar a cidade ou sigla (ex: `São Paulo`, `GRU`, `Brasília`)?",
-            parse_mode="Markdown"
-        )
-        return
-
-    if not destino_iata:
-        await update.message.reply_text(
-            f"🤔 Entendi que o destino é *{resultado.destino}*, mas não encontrei o aeroporto correspondente.\n"
-            "Poderia informar a cidade ou sigla (ex: `Miami`, `MIA`, `Lisboa`)?",
+            resultado.resposta_direta or 
+            "Entendido! Para ativar o alerta, qual a data da viagem e o valor máximo (teto em R$) que você quer pagar?",
             parse_mode="Markdown"
         )
         return
 
     if origem_iata == destino_iata:
-        await update.message.reply_text(
-            "⚠️ A origem e o destino não podem ser iguais! Por favor, reformule sua viagem.",
-            parse_mode="Markdown"
-        )
+        await update.message.reply_text("⚠️ A origem e o destino não podem ser iguais!", parse_mode="Markdown")
         return
 
-    data_ida_iso = DateService.parse_data(resultado.data_ida or "")
-    if not data_ida_iso:
-        await update.message.reply_text(
-            "📅 Não consegui identificar a data da viagem.\n"
-            "Qual a data de ida desejada? (ex: `15/11/2026` ou `15/11`):",
-            parse_mode="Markdown"
-        )
-        return
-
-    data_volta_iso = DateService.parse_data(resultado.data_volta or "") if resultado.data_volta else None
-    teto = resultado.teto
-
-    if not teto or teto <= 0:
-        # Salva dados parciais no contexto do usuário e pergunta o teto
-        context.user_data["pendente_alerta_ia"] = {
-            "origem": origem_iata,
-            "destino": destino_iata,
-            "data_ida": data_ida_iso,
-            "data_volta": data_volta_iso,
-        }
-        nome_origem = AirportService.nome_formatado(origem_iata)
-        nome_destino = AirportService.nome_formatado(destino_iata)
-        await update.message.reply_text(
-            f"✈️ Entendi a rota: *{nome_origem}* ➔ *{nome_destino}* para {DateService.formatar_br(data_ida_iso)}!\n\n"
-            f"💰 *Qual o valor máximo (teto em R$) que você aceita pagar?* (Ex: `800` ou `2500`):",
-            parse_mode="Markdown"
-        )
-        return
-
-    # Guarda o alerta preparado para confirmação
+    # 6. Todos os 4 campos estão completos -> Exibe resumo para confirmação
     context.user_data["pendente_alerta_ia"] = {
         "origem": origem_iata,
         "destino": destino_iata,
         "data_ida": data_ida_iso,
         "data_volta": data_volta_iso,
-        "teto": float(teto),
+        "teto": float(teto_val),
     }
+
+    # Limpa memória intermediária pois os dados já foram consolidados no alerta pendente
+    context.user_data.pop("memoria_viagem", None)
 
     nome_origem = AirportService.nome_formatado(origem_iata)
     nome_destino = AirportService.nome_formatado(destino_iata)
@@ -169,7 +150,7 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
         f"🛫 *Origem:* {nome_origem}\n"
         f"🛬 *Destino:* {nome_destino}\n"
         f"📅 *Datas:* {tipo_str}\n"
-        f"💰 *Preço Teto:* R$ {teto:.2f}\n\n"
+        f"💰 *Preço Teto:* R$ {teto_val:.2f}\n\n"
         "Deseja ativar este monitoramento agora?"
     )
 
@@ -207,14 +188,15 @@ async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ai_service = AIService(config.gemini_api_key)
         context.bot_data["ai_service"] = ai_service
 
-    # Mostra animação 'digitando...' enquanto o Gemini processa
+    # Animação 'digitando...'
     try:
         await update.message.chat.send_action("typing")
     except Exception:
         pass
 
     hoje_iso = DateService.hoje_brasilia().isoformat()
-    resultado = ai_service.processar_mensagem(texto, hoje_iso=hoje_iso)
+    memoria_anterior = context.user_data.get("memoria_viagem", {})
+    resultado = ai_service.processar_mensagem(texto, hoje_iso=hoje_iso, memoria_anterior=memoria_anterior)
 
     if not resultado:
         await update.message.reply_text(
@@ -256,7 +238,13 @@ async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mime_type = voice.mime_type or "audio/ogg"
 
         hoje_iso = DateService.hoje_brasilia().isoformat()
-        resultado = ai_service.processar_audio(bytes(audio_bytes), mime_type=mime_type, hoje_iso=hoje_iso)
+        memoria_anterior = context.user_data.get("memoria_viagem", {})
+        resultado = ai_service.processar_audio(
+            bytes(audio_bytes),
+            mime_type=mime_type,
+            hoje_iso=hoje_iso,
+            memoria_anterior=memoria_anterior
+        )
 
         try:
             await status_msg.delete()
