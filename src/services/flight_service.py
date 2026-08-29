@@ -26,14 +26,33 @@ class FlightService:
                 ]
                 trip_type = "one-way"
 
-            q = create_query(
-                flights=flights,
-                trip=trip_type,
-                currency="BRL",
-                language="pt-BR"
-            )
+            resultados = None
+            try:
+                q = create_query(
+                    flights=flights,
+                    trip=trip_type,
+                    currency="BRL",
+                    language="pt-BR"
+                )
+                resultados = get_flights(q)
+            except Exception as e_primary:
+                # Fallback secundário para IPs internacionais de cloud (sem forçar pt-BR)
+                try:
+                    q_fallback = create_query(
+                        flights=flights,
+                        trip=trip_type,
+                        currency="BRL"
+                    )
+                    resultados = get_flights(q_fallback)
+                except Exception:
+                    logging.warning(
+                        f"Google Flights sem voos estruturados para {origem}->{destino} ({data_ida}): {e_primary}"
+                    )
+                    return []
 
-            resultados = get_flights(q)
+            if not resultados:
+                return []
+
             voos: List[Voo] = []
             for r in resultados:
                 if hasattr(r, "price") and r.price is not None:
@@ -51,7 +70,7 @@ class FlightService:
             voos.sort(key=lambda x: x.preco)
             return voos
         except Exception as e:
-            logging.error(f"Erro ao buscar voos {origem}->{destino} ({data_ida}): {e}")
+            logging.warning(f"Exceção ao processar busca {origem}->{destino} ({data_ida}): {e}")
             return []
 
     @staticmethod

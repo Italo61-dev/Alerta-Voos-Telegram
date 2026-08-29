@@ -9,8 +9,9 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         level=logging.INFO
     )
-    # Silencia logs barulhentos de polling do httpx e avisos internos do SDK google_genai
+    # Silencia logs barulhentos de rede (httpx, primp) e avisos internos do SDK google_genai
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("primp").setLevel(logging.WARNING)
     logging.getLogger("google_genai").setLevel(logging.WARNING)
     logging.getLogger("google_genai.models").setLevel(logging.ERROR)
 
