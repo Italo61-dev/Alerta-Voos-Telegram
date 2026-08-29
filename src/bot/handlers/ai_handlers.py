@@ -13,7 +13,7 @@ def _obter_ou_criar_agente(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> 
         config = context.bot_data["config"]
         client = genai.Client(
             api_key=config.gemini_api_key,
-            http_options=types.HttpOptions(timeout=15.0)
+            http_options=types.HttpOptions(timeout=30000)
         )
         alerta_repo = context.bot_data["alerta_repo"]
         historico_repo = context.bot_data.get("historico_repo")
