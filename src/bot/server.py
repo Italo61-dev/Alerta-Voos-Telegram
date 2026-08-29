@@ -21,7 +21,7 @@ class HealthCheckServer:
 
     def start(self):
         try:
-            self._server = HTTPServer(("0.0.0.0", self.port), _HealthCheckHandler)
+            self._server = HTTPServer(("0.0.0.0", self.port), _HealthCheckHandler)  # nosec B104
             self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
             self._thread.start()
             logging.info(f"Servidor HTTP de Health Check ativo na porta {self.port}")

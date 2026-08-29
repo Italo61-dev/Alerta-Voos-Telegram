@@ -1,5 +1,11 @@
 # ✈️ Bot de Alerta de Passagens Baratas (Telegram + Google Flights + IA)
 
+[![CI/CD Quality & Security Gate](https://github.com/Italo61-dev/Alerta-Voos-Telegram/actions/workflows/ci.yml/badge.svg)](https://github.com/Italo61-dev/Alerta-Voos-Telegram/actions/workflows/ci.yml)
+![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue?logo=python)
+![Security: Bandit](https://img.shields.io/badge/security-bandit-brightgreen?logo=shield)
+![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-black)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+
 Bot autônomo do Telegram desenvolvido em Python que monitora preços de passagens aéreas diretamente pelo **Google Flights** e notifica automaticamente quando o valor atinge a meta do viajante. Conta com **Agente Autônomo (Google Gemini)** para interação por texto e voz, histórico de inteligência de preços e painel administrativo completo.
 
 ---

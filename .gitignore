@@ -16,5 +16,9 @@ venv/
 *.db
 *.sqlite3
 
-# Logs
+# Logs e Testes
 *.log
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
