@@ -101,9 +101,9 @@ PORT=8080
   - [#14](https://github.com/Italo61-dev/alerta-voos-telegram/issues/14): `feat(flights)` Pesquisa instantânea de voos com top 3 opções via IA.
   - `feat(ai)` **Caminho A Implementado**: Agente Autônomo de Viagens com Function Calling nativo do Google Gemini (`TravelAgent`). O modelo decide e executa ferramentas diretamente em Python (`buscar_voos_tempo_real`, `cadastrar_alerta_preco`, `listar_alertas_cadastrados`, `desativar_alerta`), salvando no banco de dados SQLite/Turso em tempo real e mantendo histórico de chat natural. Suporta texto e áudio nativo.
 
-* **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3) - [PRÓXIMA SPRINT]**
-  - [#7](https://github.com/Italo61-dev/alerta-voos-telegram/issues/7): `feat(data)` Histórico de preços por trecho persistido no banco.
-  - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges de super promoção).
+* **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3) - [EM ANDAMENTO]**
+  - [#7](https://github.com/Italo61-dev/alerta-voos-telegram/issues/7): `feat(data)` Histórico de preços por trecho persistido no banco [CONCLUÍDA].
+  - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges de super promoção) [PRÓXIMA TASK].
   - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão.
 
 * **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4)**
@@ -114,5 +114,4 @@ PORT=8080
 ---
 
 ## 6. Próxima Etapa de Desenvolvimento
-* Fazer merge da branch `feature/sprint-2-gemini-ai` para `main` (disparando o deploy no Heroku).
-* Iniciar a **Sprint 3 (Inteligência de Preços & Histórico)**: branch `feature/sprint-3-price-intelligence`.
+* Iniciar o desenvolvimento da **[Issue #8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): Termômetro de oportunidade (badges de super promoção)**.

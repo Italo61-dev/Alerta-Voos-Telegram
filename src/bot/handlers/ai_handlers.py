@@ -13,10 +13,12 @@ def _obter_ou_criar_agente(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> 
         config = context.bot_data["config"]
         client = genai.Client(api_key=config.gemini_api_key)
         alerta_repo = context.bot_data["alerta_repo"]
+        historico_repo = context.bot_data.get("historico_repo")
         agent = TravelAgent(
             client=client,
             user_id=user_id,
             alerta_repo=alerta_repo,
+            historico_repo=historico_repo,
             model="gemini-3.5-flash-lite"
         )
         context.user_data["travel_agent"] = agent

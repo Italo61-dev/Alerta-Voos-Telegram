@@ -29,6 +29,25 @@ def init_db(config: Config):
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS historico_precos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                alerta_id INTEGER,
+                origem TEXT NOT NULL,
+                destino TEXT NOT NULL,
+                data_ida TEXT NOT NULL,
+                data_volta TEXT,
+                preco REAL NOT NULL,
+                companhia TEXT,
+                escalas INTEGER DEFAULT 0,
+                consultado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (alerta_id) REFERENCES alertas(id) ON DELETE SET NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_historico_trecho 
+            ON historico_precos (origem, destino, data_ida)
+        """)
         if config.admin_id:
             try:
                 cursor.execute("""

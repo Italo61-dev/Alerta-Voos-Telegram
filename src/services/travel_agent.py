@@ -6,6 +6,7 @@ from google.genai.errors import APIError, ClientError
 
 from src.models.alerta import Alerta
 from src.database.alerta_repository import AlertaRepository
+from src.database.historico_repository import HistoricoRepository
 from src.services.airport_service import AirportService
 from src.services.flight_service import FlightService
 from src.services.date_service import DateService
@@ -20,11 +21,13 @@ class TravelAgent:
         client: genai.Client,
         user_id: int,
         alerta_repo: AlertaRepository,
+        historico_repo: Optional[HistoricoRepository] = None,
         model: str = "gemini-3.5-flash-lite"
     ):
         self.client = client
         self.user_id = user_id
         self.alerta_repo = alerta_repo
+        self.historico_repo = historico_repo
         self.model = model
         self.ultimo_alerta_id: Optional[int] = None
         self.ultimo_link_flights: Optional[str] = None
@@ -49,6 +52,18 @@ class TravelAgent:
             voos = FlightService.buscar_voos(origem_iata, destino_iata, data_ida_iso, data_volta_iso)
             link = FlightService.gerar_link_google_flights(origem_iata, destino_iata, data_ida_iso, data_volta_iso)
             self.ultimo_link_flights = link
+
+            # Registra a menor cotação encontrada no histórico do banco
+            if voos and self.historico_repo:
+                self.historico_repo.registrar(
+                    origem=origem_iata,
+                    destino=destino_iata,
+                    data_ida=data_ida_iso,
+                    preco=voos[0].preco,
+                    companhia=voos[0].companhia,
+                    escalas=voos[0].escalas,
+                    data_volta=data_volta_iso
+                )
 
             top_3 = [
                 {
@@ -108,6 +123,37 @@ class TravelAgent:
                 "mensagem": f"Alerta #{alerta_id} gravado no banco de dados com sucesso e ativo para monitoramento periódico!"
             }
 
+        def consultar_historico_precos(origem: str, destino: str, data_ida: str = None) -> dict:
+            """Consulta estatísticas históricas de preço registradas no banco para o trecho (menor preço já visto e média de mercado).
+            Args:
+                origem: Cidade ou aeroporto de saída (ex: Brasília, BSB, São Paulo, GRU).
+                destino: Cidade ou aeroporto de chegada (ex: Natal, NAT, Miami, MIA).
+                data_ida: Data de ida no formato AAAA-MM-DD (opcional).
+            """
+            if not self.historico_repo:
+                return {"status": "indisponivel", "mensagem": "Histórico não disponível no momento."}
+
+            origem_iata = AirportService.resolver(origem) or origem.upper()
+            destino_iata = AirportService.resolver(destino) or destino.upper()
+            data_ida_iso = DateService.parse_data(data_ida) if data_ida else None
+
+            stats = self.historico_repo.obter_estatisticas(origem_iata, destino_iata, data_ida_iso)
+            if stats.total_registros == 0:
+                return {
+                    "trecho": f"{origem_iata} -> {destino_iata}",
+                    "mensagem": "Ainda não acumulamos histórico de cotações suficiente para este trecho."
+                }
+
+            return {
+                "trecho": f"{origem_iata} -> {destino_iata}",
+                "total_cotações_registradas": stats.total_registros,
+                "menor_preco_historico": stats.menor_preco,
+                "preco_medio": round(stats.preco_medio, 2) if stats.preco_medio else None,
+                "maior_preco_historico": stats.maior_preco,
+                "ultimo_preco_visto": stats.ultimo_preco,
+                "companhia_mais_barata": stats.companhia_mais_barata
+            }
+
         def listar_alertas_cadastrados() -> dict:
             """Lista os alertas ativos que este usuário possui no banco de dados."""
             alertas = self.alerta_repo.listar_por_usuario(self.user_id)
@@ -144,16 +190,23 @@ class TravelAgent:
             "   - Use cadastrar_alerta_preco para SALVAR IMEDIATAMENTE NO BANCO DE DADOS.\n"
             "   - Use buscar_voos_tempo_real para conferir como estão os preços agora e já dar essa informação de valor para o usuário.\n"
             "5. Se o usuário pedir apenas para ver opções de voos agora sem teto (ex: 'quais os voos de SP pra Salvador dia 15/11'), use buscar_voos_tempo_real e liste as melhores opções encontradas.\n"
-            "6. Se o usuário disser 'ok', 'sim', 'confirmo', 'pode salvar', 'beleza', e você já tiver as informações necessárias da viagem, chame cadastrar_alerta_preco para gravar no banco!\n"
-            "7. Se o usuário pedir para ver os alertas dele ou cancelar algum alerta, use listar_alertas_cadastrados ou desativar_alerta.\n"
-            "8. Dê dicas úteis sobre o destino e turismo sempre que couber."
+            "6. Se o usuário perguntar se um preço está barato ou se vale a pena comprar, use consultar_historico_precos para dar uma resposta inteligente com base na média de mercado.\n"
+            "7. Se o usuário disser 'ok', 'sim', 'confirmo', 'pode salvar', 'beleza', e você já tiver as informações necessárias da viagem, chame cadastrar_alerta_preco para gravar no banco!\n"
+            "8. Se o usuário pedir para ver os alertas dele ou cancelar algum alerta, use listar_alertas_cadastrados ou desativar_alerta.\n"
+            "9. Dê dicas úteis sobre o destino e turismo sempre que couber."
         )
 
         self.chat = self.client.chats.create(
             model=self.model,
             config=types.GenerateContentConfig(
                 system_instruction=instrucoes,
-                tools=[buscar_voos_tempo_real, cadastrar_alerta_preco, listar_alertas_cadastrados, desativar_alerta],
+                tools=[
+                    buscar_voos_tempo_real,
+                    cadastrar_alerta_preco,
+                    consultar_historico_precos,
+                    listar_alertas_cadastrados,
+                    desativar_alerta
+                ],
                 temperature=0.3
             )
         )

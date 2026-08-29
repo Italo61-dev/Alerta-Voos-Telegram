@@ -165,6 +165,7 @@ async def listar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
+    historico_repo = context.bot_data.get("historico_repo")
     for al in alertas:
         link = FlightService.gerar_link_google_flights(
             origem=al.origem,
@@ -172,7 +173,8 @@ async def listar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             data_ida=al.data_ida,
             data_volta=al.data_volta
         )
-        texto = NotifierService.mensagem_card_alerta(al)
+        stats = historico_repo.obter_estatisticas(al.origem, al.destino, al.data_ida) if historico_repo else None
+        texto = NotifierService.mensagem_card_alerta(al, stats)
         botoes = NotifierService.botoes_card_alerta(al, link)
         await update.message.reply_text(texto, reply_markup=botoes, parse_mode="Markdown")
 

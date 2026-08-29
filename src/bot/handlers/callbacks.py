@@ -132,6 +132,7 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         agora = DateService.hora_formatada_br()
 
+        historico_repo = context.bot_data.get("historico_repo")
         if voos:
             melhor_voo = voos[0]
             preco_atual = melhor_voo.preco
@@ -139,9 +140,22 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 alerta_repo.atualizar_ultimo_preco(alerta.id, preco_atual)
             alerta.ultimo_preco = preco_atual
 
+            if historico_repo:
+                historico_repo.registrar(
+                    origem=alerta.origem,
+                    destino=alerta.destino,
+                    data_ida=alerta.data_ida,
+                    preco=preco_atual,
+                    companhia=melhor_voo.companhia,
+                    escalas=melhor_voo.escalas,
+                    data_volta=alerta.data_volta,
+                    alerta_id=alerta.id
+                )
+
+            stats = historico_repo.obter_estatisticas(alerta.origem, alerta.destino, alerta.data_ida) if historico_repo else None
             status_meta = "🎯 *Preço bateu a meta!*" if preco_atual <= alerta.teto else f"⏳ *Acima da meta* (Teto: R$ {alerta.teto:.2f})"
             texto_atualizado = (
-                f"{NotifierService.mensagem_card_alerta(alerta)}\n"
+                f"{NotifierService.mensagem_card_alerta(alerta, stats)}\n"
                 f"⚡ *Última checagem ({agora}):*\n"
                 f"💵 *Menor Preço Agora:* *R$ {preco_atual:.2f}* ({melhor_voo.companhia})\n"
                 f"{status_meta}"

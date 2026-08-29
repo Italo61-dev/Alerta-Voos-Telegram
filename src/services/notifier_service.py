@@ -3,6 +3,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from src.models.alerta import Alerta
 from src.models.voo import Voo
 from src.models.usuario import Usuario
+from src.models.historico import EstatisticasTrecho
 from src.services.airport_service import AirportService
 from src.services.date_service import DateService
 
@@ -57,7 +58,7 @@ class NotifierService:
         return msg
 
     @staticmethod
-    def mensagem_card_alerta(alerta: Alerta) -> str:
+    def mensagem_card_alerta(alerta: Alerta, stats: Optional[EstatisticasTrecho] = None) -> str:
         nome_origem = AirportService.nome_formatado(alerta.origem)
         nome_destino = AirportService.nome_formatado(alerta.destino)
         ida_br = DateService.formatar_br(alerta.data_ida)
@@ -73,6 +74,12 @@ class NotifierService:
         )
         if alerta.ultimo_preco:
             msg += f"💵 *Último menor preço:* R$ {alerta.ultimo_preco:.2f}\n"
+
+        if stats and stats.total_registros > 1 and stats.menor_preco:
+            msg += (
+                f"📈 *Histórico:* Menor já visto: R$ {stats.menor_preco:.2f} | "
+                f"Média: R$ {stats.preco_medio:.2f}\n"
+            )
         return msg
 
     @staticmethod
@@ -87,7 +94,12 @@ class NotifierService:
         return InlineKeyboardMarkup(keyboard)
 
     @staticmethod
-    def mensagem_oferta_encontrada(alerta: Alerta, voo: Voo, link_compra: str) -> str:
+    def mensagem_oferta_encontrada(
+        alerta: Alerta,
+        voo: Voo,
+        link_compra: str,
+        stats: Optional[EstatisticasTrecho] = None
+    ) -> str:
         nome_origem = AirportService.nome_formatado(alerta.origem)
         nome_destino = AirportService.nome_formatado(alerta.destino)
         escala_str = "Voo direto" if voo.escalas == 0 else f"{voo.escalas} conexão(ões)"
@@ -95,16 +107,23 @@ class NotifierService:
         volta_br = DateService.formatar_br(alerta.data_volta)
         datas = f"{ida_br}" + (f" até {volta_br}" if volta_br else "")
 
-        return (
+        msg = (
             f"🚨 *PREÇO BAIXOU! META ATINGIDA!* 🚨\n\n"
             f"✈️ *Alerta #{alerta.id}:* `{alerta.origem}` ➔ `{alerta.destino}`\n"
             f"📍 _{nome_origem} ➔ {nome_destino}_\n"
             f"💵 *Preço Encontrado:* *R$ {voo.preco:.2f}*\n"
             f"🎯 *Seu Preço Teto:* R$ {alerta.teto:.2f}\n"
             f"🏢 *Companhia:* {voo.companhia} ({escala_str})\n"
-            f"📅 *Data:* {datas}\n\n"
-            f"🔗 [Clique aqui para abrir a oferta no Google Flights]({link_compra})"
+            f"📅 *Data:* {datas}\n"
         )
+        if stats and stats.total_registros > 1 and stats.preco_medio:
+            economia = stats.preco_medio - voo.preco
+            if economia > 0:
+                pct = (economia / stats.preco_medio) * 100
+                msg += f"📉 *Economia estimada:* R$ {economia:.2f} ({pct:.0f}% abaixo da média de R$ {stats.preco_medio:.2f})\n"
+
+        msg += f"\n🔗 [Clique aqui para abrir a oferta no Google Flights]({link_compra})"
+        return msg
 
     @staticmethod
     def botoes_notificacao_oferta(alerta_id: int, link_compra: str) -> InlineKeyboardMarkup:

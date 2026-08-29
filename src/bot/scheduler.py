@@ -1,16 +1,23 @@
-import asyncio
-import logging
+from typing import Optional
 from telegram import Bot
 from src.config import Config
 from src.database.alerta_repository import AlertaRepository
+from src.database.historico_repository import HistoricoRepository
 from src.services.flight_service import FlightService
 from src.services.notifier_service import NotifierService
 
 class AlertScheduler:
-    def __init__(self, bot: Bot, config: Config, alerta_repo: AlertaRepository):
+    def __init__(
+        self,
+        bot: Bot,
+        config: Config,
+        alerta_repo: AlertaRepository,
+        historico_repo: Optional[HistoricoRepository] = None
+    ):
         self.bot = bot
         self.config = config
         self.alerta_repo = alerta_repo
+        self.historico_repo = historico_repo
 
     async def verificar_alertas(self) -> int:
         alertas = self.alerta_repo.listar_alertas_ativos(self.config.admin_id)
@@ -33,11 +40,26 @@ class AlertScheduler:
             melhor_voo = voos[0]
             preco_atual = melhor_voo.preco
 
+            # 1. Registra no histórico de preços para inteligência de mercado
+            if self.historico_repo:
+                self.historico_repo.registrar(
+                    origem=alerta.origem,
+                    destino=alerta.destino,
+                    data_ida=alerta.data_ida,
+                    preco=preco_atual,
+                    companhia=melhor_voo.companhia,
+                    escalas=melhor_voo.escalas,
+                    data_volta=alerta.data_volta,
+                    alerta_id=alerta.id
+                )
+
+            # 2. Atualiza o último preço registrado no alerta
+            if alerta.id is not None:
+                self.alerta_repo.atualizar_ultimo_preco(alerta.id, preco_atual)
+
             if preco_atual <= alerta.teto:
                 deve_notificar = (alerta.ultimo_preco is None) or (preco_atual < alerta.ultimo_preco)
                 if deve_notificar:
-                    if alerta.id is not None:
-                        self.alerta_repo.atualizar_ultimo_preco(alerta.id, preco_atual)
 
                     link = FlightService.gerar_link_google_flights(
                         origem=alerta.origem,
