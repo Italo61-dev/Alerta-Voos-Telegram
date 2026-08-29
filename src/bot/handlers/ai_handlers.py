@@ -14,12 +14,86 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text(resultado.resposta_direta or "Limite atingido.", parse_mode="Markdown")
         return
 
-    # 2. Resposta de consultor de viagens ou pedido de dado faltante
-    if resultado.intencao == "duvida_viagem" or (resultado.resposta_direta and not (resultado.origem and resultado.destino and resultado.teto and resultado.data_ida)):
+    # 2. Resposta de consultor de viagens
+    if resultado.intencao == "duvida_viagem":
+        await update.message.reply_text(resultado.resposta_direta or "Posso te ajudar com dúvidas de viagem!", parse_mode="Markdown")
+        return
+
+    # 3. Pesquisa Instantânea de Voos (Top 3 Melhores Opções)
+    if resultado.intencao == "pesquisar_voos":
+        origem_iata = AirportService.resolver(resultado.origem or "")
+        destino_iata = AirportService.resolver(resultado.destino or "")
+
+        if not origem_iata or not destino_iata:
+            await update.message.reply_text(
+                resultado.resposta_direta or 
+                "🤔 Para pesquisar os voos, informe a cidade de origem e destino! (Ex: 'Voos de SP pra Salvador dia 15/11')",
+                parse_mode="Markdown"
+            )
+            return
+
+        if origem_iata == destino_iata:
+            await update.message.reply_text("⚠️ A origem e o destino não podem ser iguais!", parse_mode="Markdown")
+            return
+
+        data_ida_iso = DateService.parse_data(resultado.data_ida or "")
+        if not data_ida_iso:
+            await update.message.reply_text(
+                "📅 Para qual data você gostaria de pesquisar esses voos? (Ex: `15/11/2026` ou `15/11`):",
+                parse_mode="Markdown"
+            )
+            return
+
+        data_volta_iso = DateService.parse_data(resultado.data_volta or "") if resultado.data_volta else None
+
+        status_msg = await update.message.reply_text("🔍 *Consultando o Google Flights em tempo real...*", parse_mode="Markdown")
+
+        voos = FlightService.buscar_voos(
+            origem=origem_iata,
+            destino=destino_iata,
+            data_ida=data_ida_iso,
+            data_volta=data_volta_iso
+        )
+
+        link = FlightService.gerar_link_google_flights(
+            origem=origem_iata,
+            destino=destino_iata,
+            data_ida=data_ida_iso,
+            data_volta=data_volta_iso
+        )
+
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+
+        # Salva o trecho pesquisado em context.user_data caso o usuário queira criar alerta pelo botão
+        melhor_preco = voos[0].preco if voos else (resultado.teto or 1000.0)
+        context.user_data["pendente_alerta_ia"] = {
+            "origem": origem_iata,
+            "destino": destino_iata,
+            "data_ida": data_ida_iso,
+            "data_volta": data_volta_iso,
+            "teto": float(melhor_preco),
+        }
+
+        texto_resultado = NotifierService.mensagem_resultado_busca(
+            origem=origem_iata,
+            destino=destino_iata,
+            data_ida=data_ida_iso,
+            data_volta=data_volta_iso,
+            voos=voos
+        )
+        botoes = NotifierService.botoes_resultado_busca(link)
+        await update.message.reply_text(texto_resultado, reply_markup=botoes, parse_mode="Markdown")
+        return
+
+    # 4. Se faltar dados fundamentais para criar alerta
+    if resultado.resposta_direta and not (resultado.origem and resultado.destino and resultado.teto and resultado.data_ida):
         await update.message.reply_text(resultado.resposta_direta, parse_mode="Markdown")
         return
 
-    # 3. Processamento de Criação de Alerta
+    # 5. Processamento de Criação de Alerta
     origem_iata = AirportService.resolver(resultado.origem or "")
     destino_iata = AirportService.resolver(resultado.destino or "")
 

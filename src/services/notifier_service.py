@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from src.models.alerta import Alerta
 from src.models.voo import Voo
@@ -111,6 +111,42 @@ class NotifierService:
         keyboard = [
             [InlineKeyboardButton("🔗 Comprar no Google Flights", url=link_compra)],
             [InlineKeyboardButton("🗑️ Excluir Alerta (Já comprei)", callback_data=f"remover_{alerta_id}")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
+    @staticmethod
+    def mensagem_resultado_busca(origem: str, destino: str, data_ida: str, data_volta: Optional[str], voos: List[Voo]) -> str:
+        nome_origem = AirportService.nome_formatado(origem)
+        nome_destino = AirportService.nome_formatado(destino)
+        ida_br = DateService.formatar_br(data_ida)
+        volta_br = DateService.formatar_br(data_volta)
+        datas = f"Ida ({ida_br}) e Volta ({volta_br})" if data_volta else f"Somente Ida ({ida_br})"
+
+        msg = (
+            f"🔍 *Melhores Opções no Google Flights:*\n\n"
+            f"🛫 *Trecho:* `{origem}` ➔ `{destino}`\n"
+            f"📍 _{nome_origem} ➔ {nome_destino}_\n"
+            f"📅 *Datas:* {datas}\n\n"
+        )
+        if not voos:
+            msg += "⚠️ Nenhum voo com preço disponível encontrado para esta data no Google Flights no momento.\n"
+            return msg
+
+        qtd = min(len(voos), 3)
+        msg += f"🏆 *Top {qtd} Menores Preços Encontrados:*\n\n"
+        emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
+        for i, v in enumerate(voos[:3]):
+            emoji = emojis[i] if i < len(emojis) else "✈️"
+            escala = "Voo direto" if v.escalas == 0 else f"{v.escalas} conexão(ões)"
+            msg += f"{emoji} *R$ {v.preco:.2f}* — {v.companhia} ({escala})\n"
+
+        return msg
+
+    @staticmethod
+    def botoes_resultado_busca(link_compra: str) -> InlineKeyboardMarkup:
+        keyboard = [
+            [InlineKeyboardButton("🔗 Ver Todos no Google Flights", url=link_compra)],
+            [InlineKeyboardButton("🔔 Criar Alerta para este Trecho", callback_data="ai_criar_alerta_busca")]
         ]
         return InlineKeyboardMarkup(keyboard)
 
