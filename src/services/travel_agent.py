@@ -10,6 +10,7 @@ from src.database.historico_repository import HistoricoRepository
 from src.services.airport_service import AirportService
 from src.services.flight_service import FlightService
 from src.services.date_service import DateService
+from src.services.opportunity_service import OpportunityService
 
 class TravelAgent:
     """
@@ -123,12 +124,13 @@ class TravelAgent:
                 "mensagem": f"Alerta #{alerta_id} gravado no banco de dados com sucesso e ativo para monitoramento periódico!"
             }
 
-        def consultar_historico_precos(origem: str, destino: str, data_ida: str = None) -> dict:
-            """Consulta estatísticas históricas de preço registradas no banco para o trecho (menor preço já visto e média de mercado).
+        def consultar_historico_precos(origem: str, destino: str, data_ida: str = None, preco_atual: float = None) -> dict:
+            """Consulta estatísticas históricas de preço registradas no banco para o trecho (menor preço já visto, média de mercado e termômetro de oportunidade).
             Args:
                 origem: Cidade ou aeroporto de saída (ex: Brasília, BSB, São Paulo, GRU).
                 destino: Cidade ou aeroporto de chegada (ex: Natal, NAT, Miami, MIA).
                 data_ida: Data de ida no formato AAAA-MM-DD (opcional).
+                preco_atual: Preço atual em Reais para avaliar no termômetro de oportunidade (opcional).
             """
             if not self.historico_repo:
                 return {"status": "indisponivel", "mensagem": "Histórico não disponível no momento."}
@@ -144,7 +146,7 @@ class TravelAgent:
                     "mensagem": "Ainda não acumulamos histórico de cotações suficiente para este trecho."
                 }
 
-            return {
+            resultado = {
                 "trecho": f"{origem_iata} -> {destino_iata}",
                 "total_cotações_registradas": stats.total_registros,
                 "menor_preco_historico": stats.menor_preco,
@@ -153,6 +155,17 @@ class TravelAgent:
                 "ultimo_preco_visto": stats.ultimo_preco,
                 "companhia_mais_barata": stats.companhia_mais_barata
             }
+
+            p_aval = preco_atual or stats.ultimo_preco
+            if p_aval and stats.preco_medio:
+                op = OpportunityService.classificar(p_aval, p_aval, stats.preco_medio)
+                resultado["termometro_oportunidade"] = {
+                    "classificacao": op.badge,
+                    "descricao": op.descricao,
+                    "desconto_percentual": f"{op.desconto_percentual:.1f}%"
+                }
+
+            return resultado
 
         def listar_alertas_cadastrados() -> dict:
             """Lista os alertas ativos que este usuário possui no banco de dados."""
@@ -190,7 +203,11 @@ class TravelAgent:
             "   - Use cadastrar_alerta_preco para SALVAR IMEDIATAMENTE NO BANCO DE DADOS.\n"
             "   - Use buscar_voos_tempo_real para conferir como estão os preços agora e já dar essa informação de valor para o usuário.\n"
             "5. Se o usuário pedir apenas para ver opções de voos agora sem teto (ex: 'quais os voos de SP pra Salvador dia 15/11'), use buscar_voos_tempo_real e liste as melhores opções encontradas.\n"
-            "6. Se o usuário perguntar se um preço está barato ou se vale a pena comprar, use consultar_historico_precos para dar uma resposta inteligente com base na média de mercado.\n"
+            "6. Use o conceito do Termômetro de Oportunidade:\n"
+            "   - 🔥 SUPER PROMOÇÃO (> 30% abaixo da média de mercado)\n"
+            "   - 🟢 PREÇO EXCELENTE (15% a 30% abaixo da média de mercado)\n"
+            "   - 🟡 NA META (dentro do orçamento do usuário)\n"
+            "   Use consultar_historico_precos sempre que o usuário perguntar se um preço está barato ou se vale a pena comprar, e use as badges do termômetro para orientá-lo com entusiasmo!\n"
             "7. Se o usuário disser 'ok', 'sim', 'confirmo', 'pode salvar', 'beleza', e você já tiver as informações necessárias da viagem, chame cadastrar_alerta_preco para gravar no banco!\n"
             "8. Se o usuário pedir para ver os alertas dele ou cancelar algum alerta, use listar_alertas_cadastrados ou desativar_alerta.\n"
             "9. Dê dicas úteis sobre o destino e turismo sempre que couber."

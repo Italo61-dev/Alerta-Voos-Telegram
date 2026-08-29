@@ -6,6 +6,7 @@ from src.models.usuario import Usuario
 from src.models.historico import EstatisticasTrecho
 from src.services.airport_service import AirportService
 from src.services.date_service import DateService
+from src.services.opportunity_service import OpportunityService
 
 class NotifierService:
     @staticmethod
@@ -73,7 +74,12 @@ class NotifierService:
             f"📅 *Datas:* {tipo}\n"
         )
         if alerta.ultimo_preco:
-            msg += f"💵 *Último menor preço:* R$ {alerta.ultimo_preco:.2f}\n"
+            badge = OpportunityService.badge_resumida(
+                preco_atual=alerta.ultimo_preco,
+                teto_usuario=alerta.teto,
+                preco_medio_historico=stats.preco_medio if (stats and stats.total_registros > 1) else None
+            )
+            msg += f"💵 *Último menor preço:* R$ {alerta.ultimo_preco:.2f}  `[{badge}]`\n"
 
         if stats and stats.total_registros > 1 and stats.menor_preco:
             msg += (
@@ -107,8 +113,17 @@ class NotifierService:
         volta_br = DateService.formatar_br(alerta.data_volta)
         datas = f"{ida_br}" + (f" até {volta_br}" if volta_br else "")
 
+        # Classificação inteligente de oportunidade
+        op = OpportunityService.classificar(
+            preco_atual=voo.preco,
+            teto_usuario=alerta.teto,
+            preco_medio_historico=stats.preco_medio if (stats and stats.total_registros > 1) else None
+        )
+
         msg = (
-            f"🚨 *PREÇO BAIXOU! META ATINGIDA!* 🚨\n\n"
+            f"{op.titulo}\n"
+            f"🏷️ *Termômetro:* `{op.badge}`\n"
+            f"💡 _{op.descricao}_\n\n"
             f"✈️ *Alerta #{alerta.id}:* `{alerta.origem}` ➔ `{alerta.destino}`\n"
             f"📍 _{nome_origem} ➔ {nome_destino}_\n"
             f"💵 *Preço Encontrado:* *R$ {voo.preco:.2f}*\n"
@@ -116,11 +131,8 @@ class NotifierService:
             f"🏢 *Companhia:* {voo.companhia} ({escala_str})\n"
             f"📅 *Data:* {datas}\n"
         )
-        if stats and stats.total_registros > 1 and stats.preco_medio:
-            economia = stats.preco_medio - voo.preco
-            if economia > 0:
-                pct = (economia / stats.preco_medio) * 100
-                msg += f"📉 *Economia estimada:* R$ {economia:.2f} ({pct:.0f}% abaixo da média de R$ {stats.preco_medio:.2f})\n"
+        if stats and stats.total_registros > 1 and stats.menor_preco:
+            msg += f"📈 *Histórico:* Menor já visto: R$ {stats.menor_preco:.2f} | Média: R$ {stats.preco_medio:.2f}\n"
 
         msg += f"\n🔗 [Clique aqui para abrir a oferta no Google Flights]({link_compra})"
         return msg

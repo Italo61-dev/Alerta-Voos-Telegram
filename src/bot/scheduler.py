@@ -67,7 +67,8 @@ class AlertScheduler:
                         data_ida=alerta.data_ida,
                         data_volta=alerta.data_volta
                     )
-                    mensagem = NotifierService.mensagem_oferta_encontrada(alerta, melhor_voo, link)
+                    stats = self.historico_repo.obter_estatisticas(alerta.origem, alerta.destino, alerta.data_ida) if self.historico_repo else None
+                    mensagem = NotifierService.mensagem_oferta_encontrada(alerta, melhor_voo, link, stats)
 
                     try:
                         botoes = NotifierService.botoes_notificacao_oferta(alerta.id, link)

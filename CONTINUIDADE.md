@@ -103,8 +103,8 @@ PORT=8080
 
 * **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3) - [EM ANDAMENTO]**
   - [#7](https://github.com/Italo61-dev/alerta-voos-telegram/issues/7): `feat(data)` Histórico de preços por trecho persistido no banco [CONCLUÍDA].
-  - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges de super promoção) [PRÓXIMA TASK].
-  - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão.
+  - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges de super promoção) [CONCLUÍDA].
+  - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão [PRÓXIMA TASK].
 
 * **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4)**
   - [#10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10): `feat(admin)` Comando /broadcast para envio de promoções globais aos usuários.
@@ -114,4 +114,4 @@ PORT=8080
 ---
 
 ## 6. Próxima Etapa de Desenvolvimento
-* Iniciar o desenvolvimento da **[Issue #8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): Termômetro de oportunidade (badges de super promoção)**.
+* Iniciar o desenvolvimento da **[Issue #9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): Filtro de voos diretos vs voos com conexão** (finalizando a Sprint 3!).

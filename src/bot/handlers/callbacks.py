@@ -2,9 +2,11 @@ import logging
 from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
+from src.services.airport_service import AirportService
 from src.services.flight_service import FlightService
 from src.services.notifier_service import NotifierService
 from src.services.date_service import DateService
+from src.services.opportunity_service import OpportunityService
 
 async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -153,7 +155,12 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
             stats = historico_repo.obter_estatisticas(alerta.origem, alerta.destino, alerta.data_ida) if historico_repo else None
-            status_meta = "🎯 *Preço bateu a meta!*" if preco_atual <= alerta.teto else f"⏳ *Acima da meta* (Teto: R$ {alerta.teto:.2f})"
+            op = OpportunityService.classificar(
+                preco_atual=preco_atual,
+                teto_usuario=alerta.teto,
+                preco_medio_historico=stats.preco_medio if (stats and stats.total_registros > 1) else None
+            )
+            status_meta = f"🏷️ *Termômetro:* `{op.badge}`\n💡 _{op.descricao}_"
             texto_atualizado = (
                 f"{NotifierService.mensagem_card_alerta(alerta, stats)}\n"
                 f"⚡ *Última checagem ({agora}):*\n"
