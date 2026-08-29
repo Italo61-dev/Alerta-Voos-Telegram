@@ -136,5 +136,18 @@ O projeto já inclui `Procfile` e `.python-version` configurados para rodar 24/7
 
 ---
 
+## 🧪 Engenharia de Software, Qualidade & CI/CD
+
+O repositório adota práticas rigorosas de engenharia de software e conta com um pipeline corporativo de **Integração Contínua (CI/CD)** via [GitHub Actions](.github/workflows/ci.yml), validando a estabilidade da aplicação a cada `push` ou `pull request`:
+
+* **🎨 Linter & Code Standards (Ruff):** Auditoria estática ultra-rápida de sintaxe, formatação e conformidade com a PEP8.
+* **🛡️ Segurança Estática (SAST com Bandit):** Varredura automática do código-fonte contra vulnerabilidades, vazamento de credenciais e injeção de comandos (aprovado com **0 vulnerabilidades**).
+* **🧪 Testes em Matriz Multi-Versão:** Execução paralela da suíte completa de **18 testes automatizados** em **Python 3.11** e **Python 3.12**, garantindo compatibilidade entre diferentes versões do runtime.
+* **📊 Cobertura de Código (Coverage.py):** Medição contínua da cobertura dos testes unitários sobre os módulos de banco, serviços de voos e regras de negócio.
+* **🔒 Princípio de Menor Privilégio (Least Privilege):** Token de execução das Actions limitado estritamente a leitura (`contents: read`).
+* **⚡ Concurrency Control & Caching:** Cancelamento automático de builds obsoletos na mesma branch e cache de dependências `pip` para execuções em menos de 30 segundos.
+
+---
+
 ## 📄 Licença
 Distribuído sob a licença MIT. Consulte `LICENSE` para mais detalhes.
