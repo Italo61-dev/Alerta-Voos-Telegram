@@ -134,11 +134,53 @@ O projeto já inclui `Procfile` e `.python-version` configurados para rodar 24/7
    heroku ps:scale worker=1 -a seu-app-telegram
    ```
 
+## 🏛️ Arquitetura do Sistema
+
+```
+[ Usuário / Admin ] ◄──( Texto & Voz )──► [ Telegram Bot API ]
+                                                 │
+                ┌────────────────────────────────┴────────────────────────────────┐
+                ▼                                                                 ▼
+   [ Handlers Tradicionais ]                                            [ Consultor IA Gemini ]
+   • /novo (Wizard Passo a Passo)                                       • Transcrição Desacoplada (Flash-Lite)
+   • /alerta, /listar, /remover                                         • Agente Autônomo com Function Calling
+   • /admin, /stats, /broadcast                                         • Grounding e Anti-Alucinação
+                │                                                                 │
+                └────────────────────────────────┬────────────────────────────────┘
+                                                 │
+                ┌────────────────────────────────┴────────────────────────────────┐
+                ▼                                                                 ▼
+     [ FlightService (Google Flights) ]                                [ Camada de Persistência ]
+     • Scraping em Reais (BRL) sem API corporativa                     • Turso Cloud (libSQL remoto)
+     • Termômetro de Oportunidades                                     • Fallback SQLite Local automático
+     • Filtro de Conexões (Direto vs Escalas)                          • Scheduler Periódico de Checagens
+```
+
 ---
 
 ## 🧪 Engenharia de Software, Qualidade & CI/CD
 
 O repositório adota práticas rigorosas de engenharia de software e conta com um pipeline corporativo de **Integração Contínua (CI/CD)** via [GitHub Actions](.github/workflows/ci.yml), validando a estabilidade da aplicação a cada `push` ou `pull request`:
+
+```
+[ Push / Pull Request no GitHub ]
+              │
+              ├──► 🎨 Job 1: Linter & Code Standards (Ruff) ─────────┐
+              │                                                     ▼
+              ├──► 🛡️ Job 2: SAST Security Audit (Bandit) ──► 🧪 Job 3: Matriz de Testes & Coverage
+              │                                                     │   ├── Python 3.11 (18 testes)
+              │                                                     │   └── Python 3.12 (18 testes)
+              │                                                     ▼
+              └──────────────────────────────────────────────► ✅ Build Aprovado & Step Summary
+```
+
+| Etapa | Ferramenta | Escopo & Verificação | Status |
+| :--- | :---: | :--- | :---: |
+| **🎨 Linter & Style** | `Ruff` | Sintaxe, formatação e convenções PEP8 | ![Pass](https://img.shields.io/badge/-Passed-success?style=flat-square) |
+| **🛡️ SAST Security** | `Bandit` | Varredura estática de segurança e vulnerabilidades | ![0 Issues](https://img.shields.io/badge/vulnerabilities-0-brightgreen?style=flat-square) |
+| **🧪 Testes Unitários** | `unittest` | Suíte completa com 18 testes automatizados | ![18/18 OK](https://img.shields.io/badge/tests-18%20passed-success?style=flat-square) |
+| **🐍 Matriz de Runtime** | Python 3.11 & 3.12 | Validação cruzada de compatibilidade multi-versão | ![Multi-Version](https://img.shields.io/badge/matrix-3.11%20%7C%203.12-blue?style=flat-square) |
+| **📈 Code Coverage** | `coverage.py` | Auditoria de cobertura dos testes sobre regras de negócio | ![Coverage](https://img.shields.io/badge/coverage-monitored-informational?style=flat-square) |
 
 * **🎨 Linter & Code Standards (Ruff):** Auditoria estática ultra-rápida de sintaxe, formatação e conformidade com a PEP8.
 * **🛡️ Segurança Estática (SAST com Bandit):** Varredura automática do código-fonte contra vulnerabilidades, vazamento de credenciais e injeção de comandos (aprovado com **0 vulnerabilidades**).
