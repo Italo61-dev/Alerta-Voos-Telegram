@@ -1,240 +1,26 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from google import genai
+from google.genai import types
+
 from src.bot.middlewares import requer_autorizacao
-from src.services.ai_service import AIService, DadosAlertaIA
-from src.services.airport_service import AirportService
-from src.services.date_service import DateService
-from src.services.flight_service import FlightService
-from src.services.notifier_service import NotifierService
+from src.services.travel_agent import TravelAgent
 
-async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_TYPE, resultado: DadosAlertaIA):
-    # 0. Cancelar / Limpar memória
-    if resultado.intencao == "cancelar":
-        context.user_data.pop("memoria_viagem", None)
-        context.user_data.pop("pendente_alerta_ia", None)
-        await update.message.reply_text(
-            "🧹 *Conversa reiniciada!* Limpei a memória anterior. O que você gostaria de pesquisar ou monitorar agora?",
-            parse_mode="Markdown"
-        )
-    # 0.1 Confirmar alerta pendente
-    if resultado.intencao == "confirmar" and context.user_data.get("pendente_alerta_ia"):
-        dados = context.user_data.pop("pendente_alerta_ia")
-        context.user_data.pop("memoria_viagem", None)
-
-        from src.models.alerta import Alerta
-        user_id = update.effective_user.id
+def _obter_ou_criar_agente(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> TravelAgent:
+    agent = context.user_data.get("travel_agent")
+    if not agent:
+        config = context.bot_data["config"]
+        client = genai.Client(api_key=config.gemini_api_key)
         alerta_repo = context.bot_data["alerta_repo"]
-
-        novo_alerta = Alerta(
-            id=None,
-            chat_id=user_id,
-            origem=dados["origem"],
-            destino=dados["destino"],
-            teto=dados["teto"],
-            data_ida=dados["data_ida"],
-            data_volta=dados.get("data_volta")
+        agent = TravelAgent(
+            client=client,
+            user_id=user_id,
+            alerta_repo=alerta_repo,
+            model="gemini-3.5-flash-lite"
         )
-        alerta_id = alerta_repo.salvar(novo_alerta)
-        novo_alerta.id = alerta_id
-
-        link = FlightService.gerar_link_google_flights(
-            dados["origem"], dados["destino"], dados["data_ida"], dados.get("data_volta")
-        )
-        botoes = NotifierService.botoes_card_alerta(novo_alerta, link)
-        resposta = NotifierService.mensagem_alerta_cadastrado(alerta_id, novo_alerta)
-
-        await update.message.reply_text(
-            f"✅ *Confirmado e salvo no banco de dados com sucesso!*\n\n{resposta}",
-            reply_markup=botoes,
-            parse_mode="Markdown"
-        )
-        return
-
-    # 1. Tratamento de Rate Limit
-    if resultado.intencao == "rate_limit":
-        await update.message.reply_text(resultado.resposta_direta or "Limite temporário de IA atingido.", parse_mode="Markdown")
-        return
-
-    # 2. Atualiza a memória contínua do usuário no context.user_data
-    memoria = context.user_data.get("memoria_viagem", {})
-    if resultado.origem:
-        memoria["origem"] = resultado.origem
-    if resultado.destino:
-        memoria["destino"] = resultado.destino
-    if resultado.data_ida:
-        memoria["data_ida"] = resultado.data_ida
-    if resultado.data_volta:
-        memoria["data_volta"] = resultado.data_volta
-    if resultado.teto:
-        memoria["teto"] = resultado.teto
-    context.user_data["memoria_viagem"] = memoria
-
-    # 3. Resposta de consultor de viagens (dica de turismo)
-    if resultado.intencao == "duvida_viagem":
-        await update.message.reply_text(resultado.resposta_direta or "Posso te ajudar com dicas de viagem!", parse_mode="Markdown")
-        return
-
-    # Resolve os dados consolidados da memória
-    origem_str = memoria.get("origem")
-    destino_str = memoria.get("destino")
-    data_ida_str = memoria.get("data_ida")
-    data_volta_str = memoria.get("data_volta")
-    teto_val = memoria.get("teto")
-
-    origem_iata = AirportService.resolver(origem_str or "") if origem_str else None
-    destino_iata = AirportService.resolver(destino_str or "") if destino_str else None
-    data_ida_iso = DateService.parse_data(data_ida_str or "") if data_ida_str else None
-    data_volta_iso = DateService.parse_data(data_volta_str or "") if data_volta_str else None
-
-    # Define se o fluxo é de alerta de preço (se tem teto ou pediu alerta)
-    eh_fluxo_alerta = bool(teto_val or resultado.intencao == "criar_alerta")
-
-    # 4. Fluxo de Criação de Alerta de Preço
-    if eh_fluxo_alerta:
-        # Se ainda faltar algum dado essencial para o alerta (origem, destino, data ou teto)
-        if not (origem_iata and destino_iata and data_ida_iso and teto_val):
-            await update.message.reply_text(
-                resultado.resposta_direta or 
-                "Entendido! Para ativar o alerta, qual a data da viagem e o valor máximo (teto em R$) que você quer pagar?",
-                parse_mode="Markdown"
-            )
-            return
-
-        if origem_iata == destino_iata:
-            await update.message.reply_text("⚠️ A origem e o destino não podem ser iguais! Digite outro destino:", parse_mode="Markdown")
-            return
-
-        status_msg = await update.message.reply_text("🔍 *Analisando seu pedido e verificando preços no Google Flights...*", parse_mode="Markdown")
-
-        voos = FlightService.buscar_voos(
-            origem=origem_iata,
-            destino=destino_iata,
-            data_ida=data_ida_iso,
-            data_volta=data_volta_iso
-        )
-        link = FlightService.gerar_link_google_flights(
-            origem=origem_iata,
-            destino=destino_iata,
-            data_ida=data_ida_iso,
-            data_volta=data_volta_iso
-        )
-
-        try:
-            await status_msg.delete()
-        except Exception:
-            pass
-
-        # Salva o alerta pendente para confirmação
-        context.user_data["pendente_alerta_ia"] = {
-            "origem": origem_iata,
-            "destino": destino_iata,
-            "data_ida": data_ida_iso,
-            "data_volta": data_volta_iso,
-            "teto": float(teto_val),
-        }
-        # Limpa a memória contínua pois já foi consolidado
-        context.user_data.pop("memoria_viagem", None)
-
-        nome_origem = AirportService.nome_formatado(origem_iata)
-        nome_destino = AirportService.nome_formatado(destino_iata)
-        ida_br = DateService.formatar_br(data_ida_iso)
-        volta_br = DateService.formatar_br(data_volta_iso)
-        tipo_str = f"Ida ({ida_br}) e Volta ({volta_br})" if data_volta_iso else f"Somente Ida ({ida_br})"
-
-        card_resumo = (
-            "🤖 *Entendi seu pedido de alerta!*\n\n"
-            f"🛫 *Trecho:* {nome_origem} ➔ {nome_destino}\n"
-            f"📅 *Datas:* {tipo_str}\n"
-            f"💰 *Preço Teto:* R$ {teto_val:.2f}\n\n"
-            f"🔔 *Como funciona:* Eu vou monitorar o Google Flights periodicamente e te aviso assim que encontrar uma passagem por *R$ {teto_val:.2f}* ou menos!\n\n"
-        )
-
-        if voos:
-            melhor = voos[0]
-            if melhor.preco <= teto_val:
-                card_resumo += f"🎯 *Preço já bateu a meta agora!* Encontrei voo por *R$ {melhor.preco:.2f}* ({melhor.companhia}), abaixo da sua meta!\n\n"
-            else:
-                card_resumo += f"📊 *Menor preço agora:* R$ {melhor.preco:.2f} ({melhor.companhia}). Ainda está acima de R$ {teto_val:.2f}, mas vou continuar vigiando!\n\n"
-
-            card_resumo += f"🏆 *Top {min(len(voos), 3)} Melhores Opções Hoje:*\n"
-            emojis = ["1️⃣", "2️⃣", "3️⃣"]
-            for i, v in enumerate(voos[:3]):
-                esc = "Voo direto" if v.escalas == 0 else f"{v.escalas} conexão(ões)"
-                card_resumo += f"{emojis[i]} *R$ {v.preco:.2f}* — {v.companhia} ({esc})\n"
-            card_resumo += "\n"
-
-        card_resumo += "Está tudo certo para ativar este monitoramento?"
-
-        keyboard = [
-            [InlineKeyboardButton("✅ Confirmar e Ativar Alerta", callback_data="ai_confirmar")],
-            [InlineKeyboardButton("🔗 Ver no Google Flights", url=link)],
-            [InlineKeyboardButton("❌ Cancelar", callback_data="ai_cancelar")]
-        ]
-        await update.message.reply_text(card_resumo, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-        return
-
-    # 5. Pesquisa Instantânea de Voos (quando não especificou teto e pediu apenas cotação)
-    if resultado.intencao == "pesquisar_voos":
-        if not (origem_iata and destino_iata and data_ida_iso):
-            await update.message.reply_text(
-                resultado.resposta_direta or 
-                "🤔 Para pesquisar os voos, informe a cidade de origem, destino e data! (Ex: 'Saindo de SP dia 15/11')",
-                parse_mode="Markdown"
-            )
-            return
-
-        if origem_iata == destino_iata:
-            await update.message.reply_text("⚠️ A origem e o destino não podem ser iguais!", parse_mode="Markdown")
-            return
-
-        status_msg = await update.message.reply_text("🔍 *Consultando o Google Flights em tempo real...*", parse_mode="Markdown")
-
-        voos = FlightService.buscar_voos(
-            origem=origem_iata,
-            destino=destino_iata,
-            data_ida=data_ida_iso,
-            data_volta=data_volta_iso
-        )
-
-        link = FlightService.gerar_link_google_flights(
-            origem=origem_iata,
-            destino=destino_iata,
-            data_ida=data_ida_iso,
-            data_volta=data_volta_iso
-        )
-
-        try:
-            await status_msg.delete()
-        except Exception:
-            pass
-
-        melhor_preco = voos[0].preco if voos else 1000.0
-        context.user_data["pendente_alerta_ia"] = {
-            "origem": origem_iata,
-            "destino": destino_iata,
-            "data_ida": data_ida_iso,
-            "data_volta": data_volta_iso,
-            "teto": float(melhor_preco),
-        }
-        context.user_data.pop("memoria_viagem", None)
-
-        texto_resultado = NotifierService.mensagem_resultado_busca(
-            origem=origem_iata,
-            destino=destino_iata,
-            data_ida=data_ida_iso,
-            data_volta=data_volta_iso,
-            voos=voos
-        )
-        botoes = NotifierService.botoes_resultado_busca(link)
-        await update.message.reply_text(texto_resultado, reply_markup=botoes, parse_mode="Markdown")
-        return
-
-    # 6. Fallback de conversa direta
-    await update.message.reply_text(
-        resultado.resposta_direta or "Como posso te ajudar com sua viagem? Diga para onde quer ir e quando!",
-        parse_mode="Markdown"
-    )
+        context.user_data["travel_agent"] = agent
+    return agent
 
 @requer_autorizacao
 async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -242,52 +28,15 @@ async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not texto:
         return
 
-    # Se há um alerta aguardando confirmação e o usuário digitou "ok", "sim", etc.:
-    texto_lower = texto.strip().lower()
-    palavras_confirmacao = {
-        "ok", "sim", "confirmo", "confirmar", "pode ativar", "pode salvar",
-        "ativar", "salvar", "beleza", "esta ok", "está ok", "positivo",
-        "fechado", "pode ser", "combinado", "show", "pode ir", "manda ver", "isso"
-    }
-
-    if texto_lower in palavras_confirmacao and context.user_data.get("pendente_alerta_ia"):
-        dados = context.user_data.pop("pendente_alerta_ia")
-        context.user_data.pop("memoria_viagem", None)
-
-        from src.models.alerta import Alerta
-        user_id = update.effective_user.id
-        alerta_repo = context.bot_data["alerta_repo"]
-
-        novo_alerta = Alerta(
-            id=None,
-            chat_id=user_id,
-            origem=dados["origem"],
-            destino=dados["destino"],
-            teto=dados["teto"],
-            data_ida=dados["data_ida"],
-            data_volta=dados.get("data_volta")
-        )
-        alerta_id = alerta_repo.salvar(novo_alerta)
-        novo_alerta.id = alerta_id
-
-        link = FlightService.gerar_link_google_flights(
-            dados["origem"], dados["destino"], dados["data_ida"], dados.get("data_volta")
-        )
-        botoes = NotifierService.botoes_card_alerta(novo_alerta, link)
-        resposta = NotifierService.mensagem_alerta_cadastrado(alerta_id, novo_alerta)
-
+    # Comando amigável de limpeza/reset de conversa
+    if texto.lower() in ["/reset", "/limpar", "recomeçar", "reiniciar", "limpar conversa"]:
+        agent = context.user_data.pop("travel_agent", None)
+        if agent:
+            agent.reiniciar()
         await update.message.reply_text(
-            f"✅ *Confirmado e salvo no banco de dados com sucesso!*\n\n{resposta}",
-            reply_markup=botoes,
+            "🧹 *Conversa reiniciada!* Sobre qual viagem você gostaria de falar agora?",
             parse_mode="Markdown"
         )
-        return
-
-    palavras_cancelamento = {"cancelar", "cancela", "nao", "não", "esquece", "deixa pra lá", "deixa pra la"}
-    if texto_lower in palavras_cancelamento and context.user_data.get("pendente_alerta_ia"):
-        context.user_data.pop("pendente_alerta_ia", None)
-        context.user_data.pop("memoria_viagem", None)
-        await update.message.reply_text("❌ Alerta cancelado com sucesso!", parse_mode="Markdown")
         return
 
     config = context.bot_data["config"]
@@ -301,30 +50,30 @@ async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    ai_service = context.bot_data.get("ai_service")
-    if not ai_service:
-        ai_service = AIService(config.gemini_api_key)
-        context.bot_data["ai_service"] = ai_service
-
-    # Animação 'digitando...'
     try:
         await update.message.chat.send_action("typing")
     except Exception:
         pass
 
-    hoje_iso = DateService.hoje_brasilia().isoformat()
-    memoria_anterior = context.user_data.get("memoria_viagem", {})
-    resultado = ai_service.processar_mensagem(texto, hoje_iso=hoje_iso, memoria_anterior=memoria_anterior)
+    user_id = update.effective_user.id
+    agent = _obter_ou_criar_agente(context, user_id)
 
-    if not resultado:
-        await update.message.reply_text(
-            "Desculpe, não consegui entender o pedido no momento. "
-            "Você pode tentar reformular ou usar o assistente `/novo`!",
-            parse_mode="Markdown"
-        )
-        return
+    resposta_texto, alerta_id, link_flights = agent.enviar_mensagem(texto)
 
-    await _processar_resultado_ia(update, context, resultado)
+    # Constrói botões interativos contextuais
+    botoes = []
+    if link_flights:
+        botoes.append([InlineKeyboardButton("🔗 Ver no Google Flights", url=link_flights)])
+    if alerta_id:
+        botoes.append([InlineKeyboardButton("🗑️ Excluir Alerta", callback_data=f"remover_{alerta_id}")])
+
+    markup = InlineKeyboardMarkup(botoes) if botoes else None
+
+    # Tenta enviar com Markdown; se houver caractere especial sem escape do LLM, envia texto puro
+    try:
+        await update.message.reply_text(resposta_texto, reply_markup=markup, parse_mode="Markdown")
+    except Exception:
+        await update.message.reply_text(resposta_texto, reply_markup=markup)
 
 @requer_autorizacao
 async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -335,11 +84,6 @@ async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
         return
-
-    ai_service = context.bot_data.get("ai_service")
-    if not ai_service:
-        ai_service = AIService(config.gemini_api_key)
-        context.bot_data["ai_service"] = ai_service
 
     voice = update.message.voice or update.message.audio
     if not voice:
@@ -355,30 +99,36 @@ async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         audio_bytes = await tg_file.download_as_bytearray()
         mime_type = voice.mime_type or "audio/ogg"
 
-        hoje_iso = DateService.hoje_brasilia().isoformat()
-        memoria_anterior = context.user_data.get("memoria_viagem", {})
-        resultado = ai_service.processar_audio(
-            bytes(audio_bytes),
-            mime_type=mime_type,
-            hoje_iso=hoje_iso,
-            memoria_anterior=memoria_anterior
-        )
+        user_id = update.effective_user.id
+        agent = _obter_ou_criar_agente(context, user_id)
+
+        audio_part = types.Part.from_bytes(data=bytes(audio_bytes), mime_type=mime_type)
+        resposta_texto, alerta_id, link_flights = agent.enviar_mensagem(audio_part)
 
         try:
             await status_msg.delete()
         except Exception:
             pass
 
-        if not resultado:
-            await update.message.reply_text(
-                "❌ Não consegui compreender o áudio. Tente enviar novamente falando mais perto do microfone ou digite em texto!",
-                parse_mode="Markdown"
-            )
-            return
+        botoes = []
+        if link_flights:
+            botoes.append([InlineKeyboardButton("🔗 Ver no Google Flights", url=link_flights)])
+        if alerta_id:
+            botoes.append([InlineKeyboardButton("🗑️ Excluir Alerta", callback_data=f"remover_{alerta_id}")])
 
-        await _processar_resultado_ia(update, context, resultado)
+        markup = InlineKeyboardMarkup(botoes) if botoes else None
+
+        try:
+            await update.message.reply_text(resposta_texto, reply_markup=markup, parse_mode="Markdown")
+        except Exception:
+            await update.message.reply_text(resposta_texto, reply_markup=markup)
+
     except Exception as e:
-        logging.error(f"Erro ao processar áudio via IA: {e}")
+        logging.error(f"Erro ao processar áudio via TravelAgent: {e}")
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
         await update.message.reply_text(
             "❌ Ocorreu um erro ao processar seu áudio. Tente enviar em texto!",
             parse_mode="Markdown"

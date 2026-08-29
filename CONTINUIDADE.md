@@ -99,9 +99,7 @@ PORT=8080
   - [#6](https://github.com/Italo61-dev/alerta-voos-telegram/issues/6): `feat(ai)` Consultor de viagens inteligente para dicas de turismo e épocas baratas.
   - [#13](https://github.com/Italo61-dev/alerta-voos-telegram/issues/13): `feat(ai)` Rate limit amigável e aviso de retorno quando atingir limite da IA (reset timer).
   - [#14](https://github.com/Italo61-dev/alerta-voos-telegram/issues/14): `feat(flights)` Pesquisa instantânea de voos com top 3 opções via IA.
-  - `feat(ai)` Memória conversacional contínua multi-turno (acumula dados entre mensagens sem esquecer).
-  - `feat(ai)` Priorização de criação de alerta quando há teto estipulado, com prévia do menor preço e top 3 ofertas ao vivo antes da confirmação.
-  - `feat(ai)` Confirmação e salvamento direto no banco quando o usuário digita "ok", "sim", "pode salvar" (além do botão de clique), e modelo `gemini-3.5-flash-lite` de resposta ultrarrápida (< 2s) para economizar cota.
+  - `feat(ai)` **Caminho A Implementado**: Agente Autônomo de Viagens com Function Calling nativo do Google Gemini (`TravelAgent`). O modelo decide e executa ferramentas diretamente em Python (`buscar_voos_tempo_real`, `cadastrar_alerta_preco`, `listar_alertas_cadastrados`, `desativar_alerta`), salvando no banco de dados SQLite/Turso em tempo real e mantendo histórico de chat natural. Suporta texto e áudio nativo.
 
 * **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3) - [PRÓXIMA SPRINT]**
   - [#7](https://github.com/Italo61-dev/alerta-voos-telegram/issues/7): `feat(data)` Histórico de preços por trecho persistido no banco.
