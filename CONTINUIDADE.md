@@ -134,14 +134,15 @@ PORT=8080
   - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges 🔥 Super Promoção, 🟢 Preço Excelente, 🟡 Na Meta).
   - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão (`apenas_direto`).
 
-* **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4) - [PRÓXIMA SPRINT - A ÚLTIMA]**
-  - [#10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10): `feat(admin)` Comando /broadcast para envio de promoções globais aos usuários [PRÓXIMA TASK].
-  - [#11](https://github.com/Italo61-dev/alerta-voos-telegram/issues/11): `feat(admin)` Painel de estatísticas e métricas do bot (/stats).
+* **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4) - [EM ANDAMENTO 🚀]**
+  - [#10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10): `feat(admin)` Comando /broadcast para envio de promoções globais e novidades automáticas aos usuários [CONCLUÍDA ✅].
+  - [#11](https://github.com/Italo61-dev/alerta-voos-telegram/issues/11): `feat(admin)` Painel de estatísticas e métricas do bot (/stats) [PRÓXIMA TASK].
   - [#12](https://github.com/Italo61-dev/alerta-voos-telegram/issues/12): `feat(fair-use)` Limite de alertas simultâneos por perfil de usuário.
 
 ---
 
-## 6. Próxima Etapa de Desenvolvimento (Amanhã)
-1. Iniciar a **Sprint 4 (Painel Admin & Transmissão Global)**.
-2. Criar a branch `feature/issue-10-broadcast-command`.
-3. Implementar a **[Issue #10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10)**: Comando `/broadcast <mensagem>` restrito ao administrador para envio de alertas de super promoções ou comunicados em massa para todos os usuários autorizados do bot.
+## 6. Próxima Etapa de Desenvolvimento
+1. Criar a branch `feature/issue-11-stats-command`.
+2. Implementar a **[Issue #11](https://github.com/Italo61-dev/alerta-voos-telegram/issues/11)**:
+   - Queries de agregação no `alerta_repository`, `usuario_repository` e `historico_repository`.
+   - Painel interativo e formatado via `/stats` restrito ao Administrador com totais de usuários, alertas ativos, cotações registradas e trechos mais buscados.
