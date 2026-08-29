@@ -5,7 +5,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     filters,
-    Application
+    Application,
+    ContextTypes
 )
 from src.config import Config
 from src.database.connection import DatabaseManager
