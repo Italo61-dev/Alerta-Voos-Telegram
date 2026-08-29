@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import date
-from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
@@ -9,20 +9,20 @@ from google.genai.errors import APIError, ClientError
 
 class DadosAlertaIA(BaseModel):
     intencao: str = Field(
-        description="pesquisar_voos (se quer pesquisar/listar/ver opções de voos agora); criar_alerta (se quer monitorar/vigiar no futuro); duvida_viagem (turismo/dicas); outro"
+        description="pesquisar_voos (se quer cotar/ver opções agora); criar_alerta (se quer monitorar quando baixar); duvida_viagem (turismo); cancelar (se quer parar/limpar); outro"
     )
-    origem: Optional[str] = Field(default=None, description="Cidade ou aeroporto de origem informado")
-    destino: Optional[str] = Field(default=None, description="Cidade ou aeroporto de destino informado")
+    origem: Optional[str] = Field(default=None, description="Cidade ou aeroporto de saída")
+    destino: Optional[str] = Field(default=None, description="Cidade ou aeroporto de destino")
     data_ida: Optional[str] = Field(default=None, description="Data de ida no formato AAAA-MM-DD")
     data_volta: Optional[str] = Field(default=None, description="Data de volta no formato AAAA-MM-DD, se informada")
-    teto: Optional[float] = Field(default=None, description="Valor máximo ou teto em Reais (BRL) que o usuário quer pagar, se informado")
+    teto: Optional[float] = Field(default=None, description="Valor máximo ou teto em Reais (BRL), se informado")
     resposta_direta: Optional[str] = Field(
         default=None, 
-        description="Mensagem direta ao usuário se for dúvida de viagem ou se faltar informação essencial."
+        description="Mensagem direta e amigável ao usuário quando faltar dados ou para tirar dúvidas de viagem."
     )
 
 class AIService:
-    def __init__(self, api_key: Optional[str], model: str = "gemini-3.6-flash"):
+    def __init__(self, api_key: Optional[str], model: str = "gemini-3.5-flash"):
         self.api_key = api_key
         self.model = model
         self.client = genai.Client(api_key=api_key) if api_key else None
@@ -30,108 +30,125 @@ class AIService:
     def disponivel(self) -> bool:
         return bool(self.client and self.api_key)
 
-    def processar_mensagem(self, texto: str, hoje_iso: Optional[str] = None) -> Optional[DadosAlertaIA]:
+    def processar_mensagem(
+        self,
+        texto: str,
+        hoje_iso: Optional[str] = None,
+        memoria_anterior: Optional[Dict[str, Any]] = None
+    ) -> Optional[DadosAlertaIA]:
         if not self.disponivel():
             logging.warning("AIService chamado mas chave GEMINI_API_KEY não está configurada.")
             return None
 
         hoje = hoje_iso or date.today().isoformat()
+        memoria_str = json.dumps(memoria_anterior or {}, ensure_ascii=False)
+
         prompt = (
             f"Você é o assistente inteligente de viagens de um bot de passagens aéreas no Telegram.\n"
             f"A data de hoje é {hoje}.\n\n"
-            f"Mensagem do usuário: \"{texto}\"\n\n"
-            "Instruções:\n"
-            "1. Identifique a intenção:\n"
-            "   - 'pesquisar_voos': se o usuário pediu para buscar, ver, pesquisar ou listar voos agora (ex: 'me dê 3 opções de voos', 'quais os voos de SP pra Miami dia 15/11', 'pesquise voos de BH pro Rio').\n"
-            "   - 'criar_alerta': se o usuário quer monitorar, criar alerta ou ser avisado quando o preço baixar.\n"
-            "   - 'duvida_viagem': se for pergunta sobre turismo, melhor época para viajar ou dicas gerais.\n"
-            "   - 'outro': conversa geral não relacionada a voos.\n"
-            "2. Se for 'pesquisar_voos' ou 'criar_alerta', extraia: origem, destino, data_ida (AAAA-MM-DD), data_volta (AAAA-MM-DD se houver) e teto em R$ (se mencionado).\n"
-            "3. Resolva termos relativos com base na data de hoje (ex: 'feriado de 15 de novembro', 'mês que vem', 'próxima sexta').\n"
-            "4. Se faltar dados fundamentais como origem ou data em 'pesquisar_voos', use resposta_direta para perguntar educadamente o que falta.\n"
-            "5. Se for 'duvida_viagem', forneça uma dica útil e concisa de viagem em resposta_direta."
+            f"DADOS JÁ COLETADOS DESTA CONVERSA ANTERIORMENTE:\n"
+            f"{memoria_str}\n\n"
+            f"Mensagem atual do usuário: \"{texto}\"\n\n"
+            "INSTRUÇÕES CRÍTICAS:\n"
+            "1. MANTENHA A MEMÓRIA DA CONVERSA! O usuário conversa em etapas. Se ele já informou 'Natal' anteriormente e agora disse 'Saindo de SP', o destino continua Natal e a origem passa a ser São Paulo.\n"
+            "2. Atualize os dados com novas informações enviadas ou corrija se o usuário pedir para mudar.\n"
+            "3. Se o usuário disser 'cancelar', 'esquece' ou 'recomeçar', retorne intencao='cancelar'.\n"
+            "4. Se o usuário quer pesquisar/listar voos agora, intencao='pesquisar_voos'. Se quer vigiar/monitorar para ser avisado depois, intencao='criar_alerta'. Se for turismo/épocas baratas, intencao='duvida_viagem'.\n"
+            "5. Se ainda faltar informações essenciais para concluir a viagem (ex: falta data ou origem), preencha 'resposta_direta' confirmando com simpatia o que já sabe e perguntando o que falta (ex: 'Legal, anotado! De São Paulo para Natal. Para qual data você gostaria da viagem?')."
         )
 
-        try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=DadosAlertaIA,
-                    temperature=0.2,
-                ),
-            )
-            if response.text:
-                dados = DadosAlertaIA.model_validate_json(response.text)
-                return dados
-        except APIError as e:
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                logging.warning(f"Limite da API Gemini atingido (429): {e}")
-                return DadosAlertaIA(
-                    intencao="rate_limit",
-                    resposta_direta=(
-                        "⏳ *Limite temporário de IA atingido!*\n\n"
-                        "A cota gratuita de inteligência artificial atingiu o limite de requisições por minuto.\n"
-                        "Ela volta a funcionar em instantes. Enquanto isso, você pode usar os comandos normais:\n"
-                        "✨ `/novo` - Assistente passo a passo\n"
-                        "⚡ `/alerta` - Comando direto"
-                    )
+        modelos = [self.model, "gemini-3.7-flash", "gemini-3.5-flash-lite"]
+        for mod in modelos:
+            try:
+                response = self.client.models.generate_content(
+                    model=mod,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=DadosAlertaIA,
+                        temperature=0.1,
+                    ),
                 )
-            logging.error(f"Erro na API do Gemini: {e}")
-        except Exception as e:
-            logging.error(f"Erro inesperado no AIService: {e}")
+                if response.text:
+                    return DadosAlertaIA.model_validate_json(response.text)
+            except APIError as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    logging.warning(f"Limite da API Gemini atingido (429): {e}")
+                    return DadosAlertaIA(
+                        intencao="rate_limit",
+                        resposta_direta=(
+                            "⏳ *Limite temporário de IA atingido!*\n\n"
+                            "A cota gratuita de inteligência artificial atingiu o limite de requisições por minuto.\n"
+                            "Ela volta a funcionar em instantes. Enquanto isso, use o assistente `/novo`!"
+                        )
+                    )
+                if "503" in str(e) or "UNAVAILABLE" in str(e):
+                    logging.warning(f"Modelo {mod} retornou 503. Tentando fallback...")
+                    continue
+                logging.error(f"Erro na API do Gemini ({mod}): {e}")
+                break
+            except Exception as e:
+                logging.error(f"Erro inesperado no AIService ({mod}): {e}")
+                break
 
         return None
 
-    def processar_audio(self, audio_bytes: bytes, mime_type: str = "audio/ogg", hoje_iso: Optional[str] = None) -> Optional[DadosAlertaIA]:
+    def processar_audio(
+        self,
+        audio_bytes: bytes,
+        mime_type: str = "audio/ogg",
+        hoje_iso: Optional[str] = None,
+        memoria_anterior: Optional[Dict[str, Any]] = None
+    ) -> Optional[DadosAlertaIA]:
         if not self.disponivel():
             logging.warning("AIService chamado mas chave GEMINI_API_KEY não está configurada.")
             return None
 
         hoje = hoje_iso or date.today().isoformat()
+        memoria_str = json.dumps(memoria_anterior or {}, ensure_ascii=False)
+
         prompt = (
             f"Você é o assistente inteligente de viagens de um bot de passagens aéreas no Telegram.\n"
             f"A data de hoje é {hoje}.\n"
-            "O usuário enviou uma mensagem de áudio em anexo.\n\n"
-            "Instruções:\n"
-            "1. Ouça e compreenda o que o usuário disse no áudio.\n"
-            "2. Identifique a intenção:\n"
-            "   - 'pesquisar_voos': se pediu para buscar, ver ou listar voos agora.\n"
-            "   - 'criar_alerta': se quer monitorar ou ser avisado quando baixar.\n"
-            "   - 'duvida_viagem': se for pergunta sobre turismo/épocas.\n"
-            "3. Extraia: origem, destino, data_ida (AAAA-MM-DD), data_volta (AAAA-MM-DD se houver) e teto em R$ (se houver).\n"
-            "4. Se faltar algum dado essencial, pergunte com gentileza em resposta_direta.\n"
-            "5. Se for dúvida de viagem, responda em resposta_direta."
+            f"DADOS JÁ COLETADOS DESTA CONVERSA:\n{memoria_str}\n\n"
+            "O usuário enviou um áudio em anexo.\n"
+            "1. Ouça com atenção e mantenha os dados da memória anterior somando com o que for dito no áudio.\n"
+            "2. Identifique se quer 'pesquisar_voos', 'criar_alerta', 'duvida_viagem' ou 'cancelar'.\n"
+            "3. Se faltar dados para fechar o voo, pergunte com simpatia em 'resposta_direta'."
         )
 
-        try:
-            audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[audio_part, prompt],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=DadosAlertaIA,
-                    temperature=0.2,
-                ),
-            )
-            if response.text:
-                dados = DadosAlertaIA.model_validate_json(response.text)
-                return dados
-        except APIError as e:
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                logging.warning(f"Limite da API Gemini atingido (429) em áudio: {e}")
-                return DadosAlertaIA(
-                    intencao="rate_limit",
-                    resposta_direta=(
-                        "⏳ *Limite temporário de IA atingido!*\n\n"
-                        "A cota gratuita de inteligência artificial atingiu o limite de requisições por minuto.\n"
-                        "Ela volta a funcionar em instantes. Enquanto isso, use o assistente `/novo`!"
-                    )
+        modelos = [self.model, "gemini-3.7-flash", "gemini-3.5-flash-lite"]
+        for mod in modelos:
+            try:
+                audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+                response = self.client.models.generate_content(
+                    model=mod,
+                    contents=[audio_part, prompt],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=DadosAlertaIA,
+                        temperature=0.1,
+                    ),
                 )
-            logging.error(f"Erro na API do Gemini em áudio: {e}")
-        except Exception as e:
-            logging.error(f"Erro inesperado no AIService em áudio: {e}")
+                if response.text:
+                    return DadosAlertaIA.model_validate_json(response.text)
+            except APIError as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    logging.warning(f"Limite da API Gemini atingido (429) em áudio: {e}")
+                    return DadosAlertaIA(
+                        intencao="rate_limit",
+                        resposta_direta=(
+                            "⏳ *Limite temporário de IA atingido!*\n\n"
+                            "A cota gratuita de inteligência artificial atingiu o limite de requisições por minuto.\n"
+                            "Ela volta a funcionar em instantes. Enquanto isso, use o assistente `/novo`!"
+                        )
+                    )
+                if "503" in str(e) or "UNAVAILABLE" in str(e):
+                    continue
+                logging.error(f"Erro na API do Gemini em áudio ({mod}): {e}")
+                break
+            except Exception as e:
+                logging.error(f"Erro inesperado no AIService em áudio ({mod}): {e}")
+                break
 
         return None
