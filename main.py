@@ -9,6 +9,8 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         level=logging.INFO
     )
+    # Silencia logs barulhentos de polling de rede do httpx (evita poluição e expor token no log)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     config = load_config()
     logging.info(f"Iniciando Bot de Alerta de Passagens (Admin ID: {config.admin_id})...")
