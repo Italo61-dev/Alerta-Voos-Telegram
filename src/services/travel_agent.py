@@ -260,7 +260,8 @@ class TravelAgent:
                     listar_alertas_cadastrados,
                     desativar_alerta
                 ],
-                temperature=0.3
+                temperature=0.3,
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
             )
         )
 
