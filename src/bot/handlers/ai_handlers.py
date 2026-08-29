@@ -17,6 +17,38 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
             "🧹 *Conversa reiniciada!* Limpei a memória anterior. O que você gostaria de pesquisar ou monitorar agora?",
             parse_mode="Markdown"
         )
+    # 0.1 Confirmar alerta pendente
+    if resultado.intencao == "confirmar" and context.user_data.get("pendente_alerta_ia"):
+        dados = context.user_data.pop("pendente_alerta_ia")
+        context.user_data.pop("memoria_viagem", None)
+
+        from src.models.alerta import Alerta
+        user_id = update.effective_user.id
+        alerta_repo = context.bot_data["alerta_repo"]
+
+        novo_alerta = Alerta(
+            id=None,
+            chat_id=user_id,
+            origem=dados["origem"],
+            destino=dados["destino"],
+            teto=dados["teto"],
+            data_ida=dados["data_ida"],
+            data_volta=dados.get("data_volta")
+        )
+        alerta_id = alerta_repo.salvar(novo_alerta)
+        novo_alerta.id = alerta_id
+
+        link = FlightService.gerar_link_google_flights(
+            dados["origem"], dados["destino"], dados["data_ida"], dados.get("data_volta")
+        )
+        botoes = NotifierService.botoes_card_alerta(novo_alerta, link)
+        resposta = NotifierService.mensagem_alerta_cadastrado(alerta_id, novo_alerta)
+
+        await update.message.reply_text(
+            f"✅ *Confirmado e salvo no banco de dados com sucesso!*\n\n{resposta}",
+            reply_markup=botoes,
+            parse_mode="Markdown"
+        )
         return
 
     # 1. Tratamento de Rate Limit
@@ -208,6 +240,54 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
 async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
     if not texto:
+        return
+
+    # Se há um alerta aguardando confirmação e o usuário digitou "ok", "sim", etc.:
+    texto_lower = texto.strip().lower()
+    palavras_confirmacao = {
+        "ok", "sim", "confirmo", "confirmar", "pode ativar", "pode salvar",
+        "ativar", "salvar", "beleza", "esta ok", "está ok", "positivo",
+        "fechado", "pode ser", "combinado", "show", "pode ir", "manda ver", "isso"
+    }
+
+    if texto_lower in palavras_confirmacao and context.user_data.get("pendente_alerta_ia"):
+        dados = context.user_data.pop("pendente_alerta_ia")
+        context.user_data.pop("memoria_viagem", None)
+
+        from src.models.alerta import Alerta
+        user_id = update.effective_user.id
+        alerta_repo = context.bot_data["alerta_repo"]
+
+        novo_alerta = Alerta(
+            id=None,
+            chat_id=user_id,
+            origem=dados["origem"],
+            destino=dados["destino"],
+            teto=dados["teto"],
+            data_ida=dados["data_ida"],
+            data_volta=dados.get("data_volta")
+        )
+        alerta_id = alerta_repo.salvar(novo_alerta)
+        novo_alerta.id = alerta_id
+
+        link = FlightService.gerar_link_google_flights(
+            dados["origem"], dados["destino"], dados["data_ida"], dados.get("data_volta")
+        )
+        botoes = NotifierService.botoes_card_alerta(novo_alerta, link)
+        resposta = NotifierService.mensagem_alerta_cadastrado(alerta_id, novo_alerta)
+
+        await update.message.reply_text(
+            f"✅ *Confirmado e salvo no banco de dados com sucesso!*\n\n{resposta}",
+            reply_markup=botoes,
+            parse_mode="Markdown"
+        )
+        return
+
+    palavras_cancelamento = {"cancelar", "cancela", "nao", "não", "esquece", "deixa pra lá", "deixa pra la"}
+    if texto_lower in palavras_cancelamento and context.user_data.get("pendente_alerta_ia"):
+        context.user_data.pop("pendente_alerta_ia", None)
+        context.user_data.pop("memoria_viagem", None)
+        await update.message.reply_text("❌ Alerta cancelado com sucesso!", parse_mode="Markdown")
         return
 
     config = context.bot_data["config"]

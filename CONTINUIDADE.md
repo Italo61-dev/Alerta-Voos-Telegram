@@ -101,6 +101,7 @@ PORT=8080
   - [#14](https://github.com/Italo61-dev/alerta-voos-telegram/issues/14): `feat(flights)` Pesquisa instantânea de voos com top 3 opções via IA.
   - `feat(ai)` Memória conversacional contínua multi-turno (acumula dados entre mensagens sem esquecer).
   - `feat(ai)` Priorização de criação de alerta quando há teto estipulado, com prévia do menor preço e top 3 ofertas ao vivo antes da confirmação.
+  - `feat(ai)` Confirmação e salvamento direto no banco quando o usuário digita "ok", "sim", "pode salvar" (além do botão de clique), e modelo `gemini-3.5-flash-lite` de resposta ultrarrápida (< 2s) para economizar cota.
 
 * **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3) - [PRÓXIMA SPRINT]**
   - [#7](https://github.com/Italo61-dev/alerta-voos-telegram/issues/7): `feat(data)` Histórico de preços por trecho persistido no banco.

@@ -9,7 +9,7 @@ from google.genai.errors import APIError, ClientError
 
 class DadosAlertaIA(BaseModel):
     intencao: str = Field(
-        description="pesquisar_voos (se quer cotar/ver opções agora); criar_alerta (se quer monitorar quando baixar); duvida_viagem (turismo); cancelar (se quer parar/limpar); outro"
+        description="criar_alerta (se quer monitorar preço); pesquisar_voos (se quer cotar agora); confirmar (se disse ok, sim, pode salvar, confirma); duvida_viagem; cancelar; outro"
     )
     origem: Optional[str] = Field(default=None, description="Cidade ou aeroporto de saída")
     destino: Optional[str] = Field(default=None, description="Cidade ou aeroporto de destino")
@@ -22,7 +22,7 @@ class DadosAlertaIA(BaseModel):
     )
 
 class AIService:
-    def __init__(self, api_key: Optional[str], model: str = "gemini-3.5-flash"):
+    def __init__(self, api_key: Optional[str], model: str = "gemini-3.5-flash-lite"):
         self.api_key = api_key
         self.model = model
         self.client = genai.Client(api_key=api_key) if api_key else None
@@ -59,7 +59,7 @@ class AIService:
             "7. Se ainda faltar informações essenciais para concluir a viagem (ex: falta data ou de onde vai sair), preencha 'resposta_direta' confirmando com simpatia o que já sabe e perguntando o que falta (ex: 'Legal, anotado! De Brasília para Natal. Para qual data e valor você gostaria da viagem?')."
         )
 
-        modelos = [self.model, "gemini-3.7-flash", "gemini-3.5-flash-lite"]
+        modelos = [self.model, "gemini-3.7-flash", "gemini-3.6-flash"]
         for mod in modelos:
             try:
                 response = self.client.models.generate_content(
@@ -119,7 +119,7 @@ class AIService:
             "3. Se faltar dados para fechar o voo, pergunte com simpatia em 'resposta_direta'."
         )
 
-        modelos = [self.model, "gemini-3.7-flash", "gemini-3.5-flash-lite"]
+        modelos = [self.model, "gemini-3.7-flash", "gemini-3.6-flash"]
         for mod in modelos:
             try:
                 audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
