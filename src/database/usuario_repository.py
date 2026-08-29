@@ -45,6 +45,28 @@ class UsuarioRepository:
             logging.error(f"Erro ao definir autorização de {user_id}: {e}")
             return False
 
+    def listar_autorizados(self) -> List[Usuario]:
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT user_id, nome, username, autorizado, criado_em FROM usuarios WHERE autorizado = 1 ORDER BY criado_em DESC"
+                )
+                rows = cursor.fetchall()
+                return [
+                    Usuario(
+                        user_id=r[0],
+                        nome=r[1] or "Sem Nome",
+                        username=r[2] or "",
+                        autorizado=True,
+                        criado_em=str(r[4]) if r[4] else None
+                    )
+                    for r in rows
+                ]
+        except Exception as e:
+            logging.error(f"Erro ao listar usuários autorizados: {e}")
+            return []
+
     def listar_todos(self) -> List[Usuario]:
         try:
             with self.db.get_connection() as conn:

@@ -20,11 +20,14 @@ from src.bot.handlers.user_handlers import (
     listar_command,
     remover_command,
     testar_command,
+    novidades_command,
 )
 from src.bot.handlers.admin_handlers import (
     usuarios_command,
     aprovar_command,
     bloquear_command,
+    broadcast_command,
+    broadcast_novidades_command,
 )
 from src.bot.handlers.callbacks import callback_geral
 from src.bot.handlers.wizard_handlers import criar_wizard_handler
@@ -58,6 +61,7 @@ def create_bot_app(config: Config) -> Application:
     app.add_handler(CommandHandler("ajuda", ajuda_command))
     app.add_handler(CommandHandler("alerta", alerta_command))
     app.add_handler(CommandHandler("listar", listar_command))
+    app.add_handler(CommandHandler("novidades", novidades_command))
     app.add_handler(CommandHandler("remover", remover_command))
     app.add_handler(CommandHandler("testar", testar_command))
 
@@ -65,6 +69,8 @@ def create_bot_app(config: Config) -> Application:
     app.add_handler(CommandHandler("usuarios", usuarios_command))
     app.add_handler(CommandHandler("aprovar", aprovar_command))
     app.add_handler(CommandHandler("bloquear", bloquear_command))
+    app.add_handler(CommandHandler("broadcast", broadcast_command))
+    app.add_handler(CommandHandler("broadcast_novidades", broadcast_novidades_command))
 
     # 4. Callbacks de Botões Inline Gerais
     app.add_handler(CallbackQueryHandler(callback_geral))

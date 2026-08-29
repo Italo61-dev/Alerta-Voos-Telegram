@@ -13,16 +13,20 @@ Bot do Telegram em Python que monitora preços de voos diretamente pelo Google F
 
 ### Usuários Comuns:
 - `/start` ou `/ajuda`: Mensagem de boas-vindas e instruções.
-- `/alerta BSB NAT 500 2026-10-15`: Cadastra alerta só de ida.
-- `/alerta BSB NAT 900 2026-10-15 2026-10-25`: Cadastra alerta de ida e volta.
-- `/listar`: Exibe todos os seus alertas ativos cadastrados.
+- `/novo`: Assistente conversacional guiado passo a passo para criar alertas.
+- `/novidades`: Guia com o que mudou no bot e exemplos de como usar cada função.
+- `/alerta ORIGEM DESTINO TETO DATA_IDA [DATA_VOLTA]`: Criação rápida de alerta em linha.
+- `/listar`: Exibe todos os seus alertas ativos com botões interativos de 1 clique.
 - `/remover ID`: Desativa um alerta específico.
 - `/testar`: Força checagem imediata dos seus alertas.
+- *Mensagens de Texto e Áudio com IA:* Fale ou envie áudio naturalmente com o bot!
 
 ### Administrador:
 - `/usuarios`: Lista usuários registrados, status e ações.
 - `/aprovar ID`: Aprova manualmente o acesso de um usuário.
 - `/bloquear ID`: Bloqueia o acesso de um usuário.
+- `/broadcast <msg>`: Transmite mensagem personalizada para todos os usuários autorizados.
+- `/broadcast_novidades`: Dispara o resumo oficial de novidades e instruções para todos os usuários.
 
 ## ⚙️ Variáveis de Ambiente
 - `TELEGRAM_TOKEN`: Token do bot gerado pelo @BotFather.

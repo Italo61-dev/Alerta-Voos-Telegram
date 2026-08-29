@@ -24,6 +24,7 @@ class NotifierService:
             "💡 _Dica: Você também pode me fazer perguntas de viagem, dicas de turismo e épocas baratas!_\n\n"
             "📋 *Outros Comandos:*\n"
             "`/listar` - Ver seus alertas em cards interativos com botões\n"
+            "`/novidades` - Ver o que há de novo no bot e como usar as novas funções\n"
             "`/testar` - Fazer uma checagem imediata de todos os seus alertas agora\n"
             "`/ajuda` - Reexibir esta mensagem"
         )
@@ -32,7 +33,9 @@ class NotifierService:
                 "\n\n👑 *Comandos de Administrador:*\n"
                 "`/usuarios` - Ver usuários e solicitações\n"
                 "`/aprovar ID` - Aprovar acesso manualmente\n"
-                "`/bloquear ID` - Bloquear acesso de um usuário"
+                "`/bloquear ID` - Bloquear acesso de um usuário\n"
+                "`/broadcast <msg>` - Transmitir mensagem para todos os usuários\n"
+                "`/broadcast_novidades` - Disparar comunicado de novidades para todos"
             )
         return msg
 

@@ -233,3 +233,9 @@ async def testar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✔️ *Consulta finalizada!* {notificados} notificação(ões) de preço enviada(s).",
         parse_mode="Markdown"
     )
+
+@requer_autorizacao
+async def novidades_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from src.services.broadcast_service import BroadcastService
+    mensagem = BroadcastService.formatar_mensagem_novidades()
+    await update.message.reply_text(mensagem, parse_mode="Markdown")
