@@ -19,7 +19,7 @@ def _obter_ou_criar_agente(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> 
             user_id=user_id,
             alerta_repo=alerta_repo,
             historico_repo=historico_repo,
-            model="gemini-3.6-flash"
+            model="gemini-3.7-flash"
         )
         context.user_data["travel_agent"] = agent
     return agent

@@ -23,7 +23,7 @@ class TravelAgent:
         user_id: int,
         alerta_repo: AlertaRepository,
         historico_repo: Optional[HistoricoRepository] = None,
-        model: str = "gemini-3.6-flash"
+        model: str = "gemini-3.7-flash"
     ):
         self.client = client
         self.user_id = user_id
