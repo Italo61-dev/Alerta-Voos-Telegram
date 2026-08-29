@@ -53,6 +53,15 @@ Bot autônomo do Telegram desenvolvido em Python que monitora preços de passage
 
 ---
 
+## 📚 Manuais e Guias em PDF
+
+O repositório inclui manuais ilustrados e formatados em PDF na pasta [`docs/`](docs/):
+
+* **[📖 Guia Oficial de Comandos (User & Admin)](docs/Guia_Oficial_Comandos_Bot_Voos.pdf):** Manual de bolso com tabela detalhada de todos os comandos, exemplos de sintaxe, explicação das regras de fair-use e o termômetro de ofertas.
+* **[🎓 Masterclass de Engenharia de IA, Áudio & Anti-Alucinação](docs/Masterclass_IA_Audio_Bots_Gemini.pdf):** Estudo de engenharia detalhando a arquitetura em duas camadas (transcrição desacoplada + agente cognitivo), como evitar o erro 400, mitigar alucinações com grounding e dominar os limites de cotas do Google Gemini.
+
+---
+
 ## ⚙️ Variáveis de Ambiente
 
 Configure as seguintes variáveis no arquivo `.env` local ou no painel do seu provedor (Heroku / Render / VPS):
