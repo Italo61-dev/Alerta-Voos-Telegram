@@ -83,4 +83,11 @@ def create_bot_app(config: Config) -> Application:
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensagem_texto_ia))
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, mensagem_audio_ia))
 
+    # 6. Handler Global de Erros
+    async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        import logging
+        logging.error(f"Exceção não tratada na execução do bot: {context.error}", exc_info=context.error)
+
+    app.add_error_handler(global_error_handler)
+
     return app
