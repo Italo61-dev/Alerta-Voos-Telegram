@@ -55,7 +55,94 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
     data_ida_iso = DateService.parse_data(data_ida_str or "") if data_ida_str else None
     data_volta_iso = DateService.parse_data(data_volta_str or "") if data_volta_str else None
 
-    # 4. Pesquisa Instantânea de Voos (Top 3 Melhores Opções)
+    # Define se o fluxo é de alerta de preço (se tem teto ou pediu alerta)
+    eh_fluxo_alerta = bool(teto_val or resultado.intencao == "criar_alerta")
+
+    # 4. Fluxo de Criação de Alerta de Preço
+    if eh_fluxo_alerta:
+        # Se ainda faltar algum dado essencial para o alerta (origem, destino, data ou teto)
+        if not (origem_iata and destino_iata and data_ida_iso and teto_val):
+            await update.message.reply_text(
+                resultado.resposta_direta or 
+                "Entendido! Para ativar o alerta, qual a data da viagem e o valor máximo (teto em R$) que você quer pagar?",
+                parse_mode="Markdown"
+            )
+            return
+
+        if origem_iata == destino_iata:
+            await update.message.reply_text("⚠️ A origem e o destino não podem ser iguais! Digite outro destino:", parse_mode="Markdown")
+            return
+
+        status_msg = await update.message.reply_text("🔍 *Analisando seu pedido e verificando preços no Google Flights...*", parse_mode="Markdown")
+
+        voos = FlightService.buscar_voos(
+            origem=origem_iata,
+            destino=destino_iata,
+            data_ida=data_ida_iso,
+            data_volta=data_volta_iso
+        )
+        link = FlightService.gerar_link_google_flights(
+            origem=origem_iata,
+            destino=destino_iata,
+            data_ida=data_ida_iso,
+            data_volta=data_volta_iso
+        )
+
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+
+        # Salva o alerta pendente para confirmação
+        context.user_data["pendente_alerta_ia"] = {
+            "origem": origem_iata,
+            "destino": destino_iata,
+            "data_ida": data_ida_iso,
+            "data_volta": data_volta_iso,
+            "teto": float(teto_val),
+        }
+        # Limpa a memória contínua pois já foi consolidado
+        context.user_data.pop("memoria_viagem", None)
+
+        nome_origem = AirportService.nome_formatado(origem_iata)
+        nome_destino = AirportService.nome_formatado(destino_iata)
+        ida_br = DateService.formatar_br(data_ida_iso)
+        volta_br = DateService.formatar_br(data_volta_iso)
+        tipo_str = f"Ida ({ida_br}) e Volta ({volta_br})" if data_volta_iso else f"Somente Ida ({ida_br})"
+
+        card_resumo = (
+            "🤖 *Entendi seu pedido de alerta!*\n\n"
+            f"🛫 *Trecho:* {nome_origem} ➔ {nome_destino}\n"
+            f"📅 *Datas:* {tipo_str}\n"
+            f"💰 *Preço Teto:* R$ {teto_val:.2f}\n\n"
+            f"🔔 *Como funciona:* Eu vou monitorar o Google Flights periodicamente e te aviso assim que encontrar uma passagem por *R$ {teto_val:.2f}* ou menos!\n\n"
+        )
+
+        if voos:
+            melhor = voos[0]
+            if melhor.preco <= teto_val:
+                card_resumo += f"🎯 *Preço já bateu a meta agora!* Encontrei voo por *R$ {melhor.preco:.2f}* ({melhor.companhia}), abaixo da sua meta!\n\n"
+            else:
+                card_resumo += f"📊 *Menor preço agora:* R$ {melhor.preco:.2f} ({melhor.companhia}). Ainda está acima de R$ {teto_val:.2f}, mas vou continuar vigiando!\n\n"
+
+            card_resumo += f"🏆 *Top {min(len(voos), 3)} Melhores Opções Hoje:*\n"
+            emojis = ["1️⃣", "2️⃣", "3️⃣"]
+            for i, v in enumerate(voos[:3]):
+                esc = "Voo direto" if v.escalas == 0 else f"{v.escalas} conexão(ões)"
+                card_resumo += f"{emojis[i]} *R$ {v.preco:.2f}* — {v.companhia} ({esc})\n"
+            card_resumo += "\n"
+
+        card_resumo += "Está tudo certo para ativar este monitoramento?"
+
+        keyboard = [
+            [InlineKeyboardButton("✅ Confirmar e Ativar Alerta", callback_data="ai_confirmar")],
+            [InlineKeyboardButton("🔗 Ver no Google Flights", url=link)],
+            [InlineKeyboardButton("❌ Cancelar", callback_data="ai_cancelar")]
+        ]
+        await update.message.reply_text(card_resumo, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    # 5. Pesquisa Instantânea de Voos (quando não especificou teto e pediu apenas cotação)
     if resultado.intencao == "pesquisar_voos":
         if not (origem_iata and destino_iata and data_ida_iso):
             await update.message.reply_text(
@@ -90,8 +177,7 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
         except Exception:
             pass
 
-        # Salva o trecho pesquisado em pendente_alerta_ia caso queira criar alerta
-        melhor_preco = voos[0].preco if voos else (teto_val or 1000.0)
+        melhor_preco = voos[0].preco if voos else 1000.0
         context.user_data["pendente_alerta_ia"] = {
             "origem": origem_iata,
             "destino": destino_iata,
@@ -99,8 +185,6 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
             "data_volta": data_volta_iso,
             "teto": float(melhor_preco),
         }
-
-        # Concluiu a busca imediata: limpa a memória temporária
         context.user_data.pop("memoria_viagem", None)
 
         texto_resultado = NotifierService.mensagem_resultado_busca(
@@ -114,55 +198,9 @@ async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text(texto_resultado, reply_markup=botoes, parse_mode="Markdown")
         return
 
-    # 5. Se ainda faltar algum dado para cadastrar o alerta (origem, destino, data ou teto)
-    if not (origem_iata and destino_iata and data_ida_iso and teto_val):
-        await update.message.reply_text(
-            resultado.resposta_direta or 
-            "Entendido! Para ativar o alerta, qual a data da viagem e o valor máximo (teto em R$) que você quer pagar?",
-            parse_mode="Markdown"
-        )
-        return
-
-    if origem_iata == destino_iata:
-        await update.message.reply_text("⚠️ A origem e o destino não podem ser iguais!", parse_mode="Markdown")
-        return
-
-    # 6. Todos os 4 campos estão completos -> Exibe resumo para confirmação
-    context.user_data["pendente_alerta_ia"] = {
-        "origem": origem_iata,
-        "destino": destino_iata,
-        "data_ida": data_ida_iso,
-        "data_volta": data_volta_iso,
-        "teto": float(teto_val),
-    }
-
-    # Limpa memória intermediária pois os dados já foram consolidados no alerta pendente
-    context.user_data.pop("memoria_viagem", None)
-
-    nome_origem = AirportService.nome_formatado(origem_iata)
-    nome_destino = AirportService.nome_formatado(destino_iata)
-    ida_br = DateService.formatar_br(data_ida_iso)
-    volta_br = DateService.formatar_br(data_volta_iso)
-    tipo_str = f"Ida ({ida_br}) e Volta ({volta_br})" if data_volta_iso else f"Somente Ida ({ida_br})"
-
-    card_resumo = (
-        "🤖 *Entendi seu pedido de alerta!*\n\n"
-        f"🛫 *Origem:* {nome_origem}\n"
-        f"🛬 *Destino:* {nome_destino}\n"
-        f"📅 *Datas:* {tipo_str}\n"
-        f"💰 *Preço Teto:* R$ {teto_val:.2f}\n\n"
-        "Deseja ativar este monitoramento agora?"
-    )
-
-    keyboard = [
-        [
-            InlineKeyboardButton("✅ Confirmar e Ativar", callback_data="ai_confirmar"),
-            InlineKeyboardButton("❌ Cancelar", callback_data="ai_cancelar")
-        ]
-    ]
+    # 6. Fallback de conversa direta
     await update.message.reply_text(
-        card_resumo,
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        resultado.resposta_direta or "Como posso te ajudar com sua viagem? Diga para onde quer ir e quando!",
         parse_mode="Markdown"
     )
 

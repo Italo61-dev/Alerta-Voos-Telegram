@@ -53,8 +53,10 @@ class AIService:
             "1. MANTENHA A MEMÓRIA DA CONVERSA! O usuário conversa em etapas. Se ele já informou 'Natal' anteriormente e agora disse 'Saindo de SP', o destino continua Natal e a origem passa a ser São Paulo.\n"
             "2. Atualize os dados com novas informações enviadas ou corrija se o usuário pedir para mudar.\n"
             "3. Se o usuário disser 'cancelar', 'esquece' ou 'recomeçar', retorne intencao='cancelar'.\n"
-            "4. Se o usuário quer pesquisar/listar voos agora, intencao='pesquisar_voos'. Se quer vigiar/monitorar para ser avisado depois, intencao='criar_alerta'. Se for turismo/épocas baratas, intencao='duvida_viagem'.\n"
-            "5. Se ainda faltar informações essenciais para concluir a viagem (ex: falta data ou origem), preencha 'resposta_direta' confirmando com simpatia o que já sabe e perguntando o que falta (ex: 'Legal, anotado! De São Paulo para Natal. Para qual data você gostaria da viagem?')."
+            "4. REGRA DE OURO PARA INTENÇÃO: Se o usuário informou um preço máximo / teto que quer pagar (ex: 'quero pagar até 900', 'por até 800 reais', 'teto de 1500'), a intenção É SEMPRE 'criar_alerta'! Ele quer que o bot crie o alerta para monitorar e avisá-lo quando encontrar voo igual ou menor que aquele valor.\n"
+            "5. Só marque 'pesquisar_voos' se ele NÃO informou teto de preço e pediu explicitamente para apenas ver/listar voos agora (ex: 'me dê 3 opções', 'pesquise voos de X para Y', 'quais os voos').\n"
+            "6. Se for dúvida sobre turismo ou épocas baratas, marque 'duvida_viagem'.\n"
+            "7. Se ainda faltar informações essenciais para concluir a viagem (ex: falta data ou de onde vai sair), preencha 'resposta_direta' confirmando com simpatia o que já sabe e perguntando o que falta (ex: 'Legal, anotado! De Brasília para Natal. Para qual data e valor você gostaria da viagem?')."
         )
 
         modelos = [self.model, "gemini-3.7-flash", "gemini-3.5-flash-lite"]
@@ -113,7 +115,7 @@ class AIService:
             f"DADOS JÁ COLETADOS DESTA CONVERSA:\n{memoria_str}\n\n"
             "O usuário enviou um áudio em anexo.\n"
             "1. Ouça com atenção e mantenha os dados da memória anterior somando com o que for dito no áudio.\n"
-            "2. Identifique se quer 'pesquisar_voos', 'criar_alerta', 'duvida_viagem' ou 'cancelar'.\n"
+            "2. Se o usuário informou um preço máximo/teto que aceita pagar, a intenção É SEMPRE 'criar_alerta'! Se pediu apenas para ver/listar opções agora sem meta de preço, marque 'pesquisar_voos'.\n"
             "3. Se faltar dados para fechar o voo, pergunte com simpatia em 'resposta_direta'."
         )
 
