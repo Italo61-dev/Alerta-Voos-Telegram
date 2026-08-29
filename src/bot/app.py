@@ -3,12 +3,15 @@ from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
+    MessageHandler,
+    filters,
     Application
 )
 from src.config import Config
 from src.database.connection import DatabaseManager
 from src.database.usuario_repository import UsuarioRepository
 from src.database.alerta_repository import AlertaRepository
+from src.services.ai_service import AIService
 from src.bot.handlers.user_handlers import (
     start_command,
     ajuda_command,
@@ -24,6 +27,7 @@ from src.bot.handlers.admin_handlers import (
 )
 from src.bot.handlers.callbacks import callback_geral
 from src.bot.handlers.wizard_handlers import criar_wizard_handler
+from src.bot.handlers.ai_handlers import mensagem_texto_ia
 from src.bot.scheduler import AlertScheduler
 
 def create_bot_app(config: Config) -> Application:
@@ -41,6 +45,7 @@ def create_bot_app(config: Config) -> Application:
     app.bot_data["config"] = config
     app.bot_data["usuario_repo"] = usuario_repo
     app.bot_data["alerta_repo"] = alerta_repo
+    app.bot_data["ai_service"] = AIService(config.gemini_api_key)
 
     # 1. Wizard Guiado (ConversationHandler)
     app.add_handler(criar_wizard_handler())
@@ -60,5 +65,8 @@ def create_bot_app(config: Config) -> Application:
 
     # 4. Callbacks de Botões Inline Gerais
     app.add_handler(CallbackQueryHandler(callback_geral))
+
+    # 5. Mensagens Livres com IA (Google Gemini)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensagem_texto_ia))
 
     return app

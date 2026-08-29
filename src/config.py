@@ -11,6 +11,7 @@ DEFAULT_DB_PATH = BASE_DIR / "alertas.db"
 class Config:
     telegram_token: str
     admin_id: int
+    gemini_api_key: Optional[str]
     turso_database_url: Optional[str]
     turso_auth_token: Optional[str]
     check_interval_hours: int
@@ -39,12 +40,13 @@ def load_config() -> Config:
             "Defina a variável no arquivo .env ou nas variáveis de ambiente do sistema/Heroku."
         )
 
-    admin_id_raw = os.environ.get("ADMIN_ID", "0").strip()
+    admin_id_raw = os.environ.get("ADMIN_ID", "5599506814").strip()
     try:
         admin_id = int(admin_id_raw)
     except ValueError:
-        admin_id = 0
+        admin_id = 5599506814
 
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip() or None
     turso_url = os.environ.get("TURSO_DATABASE_URL", "").strip() or None
     turso_token = os.environ.get("TURSO_AUTH_TOKEN", "").strip() or None
 
@@ -61,6 +63,7 @@ def load_config() -> Config:
     return Config(
         telegram_token=token,
         admin_id=admin_id,
+        gemini_api_key=gemini_key,
         turso_database_url=turso_url,
         turso_auth_token=turso_token,
         check_interval_hours=check_interval,
