@@ -315,8 +315,19 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id != config.admin_id:
             await query.answer("⛔ Acesso restrito ao administrador.", show_alert=True)
             return
+        await query.edit_message_text(
+            "⏳ *Consultando o Google Flights para todos os alertas ativos...*\n\n"
+            "Isso pode levar alguns segundos dependendo da quantidade de trechos. Aguarde...",
+            parse_mode="Markdown"
+        )
         from src.bot.scheduler import AlertScheduler
-        scheduler = AlertScheduler(context.bot, config, alerta_repo)
+        historico_repo = context.bot_data.get("historico_repo")
+        scheduler = AlertScheduler(
+            bot=context.bot,
+            config=config,
+            alerta_repo=alerta_repo,
+            historico_repo=historico_repo
+        )
         notificados = await scheduler.verificar_alertas()
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
         keyboard = [[InlineKeyboardButton("🔙 Menu Admin", callback_data="admin_menu")]]

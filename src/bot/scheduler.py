@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from telegram import Bot
 from src.config import Config
