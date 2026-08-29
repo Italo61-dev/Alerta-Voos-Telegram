@@ -188,5 +188,35 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop("pendente_alerta_ia", None)
         await query.edit_message_text("❌ Alerta cancelado.")
 
+    # 6. Criar Alerta a partir de Pesquisa Instantânea
+    elif data == "ai_criar_alerta_busca":
+        await query.answer()
+        dados = context.user_data.get("pendente_alerta_ia")
+        if not dados:
+            await query.answer("⚠️ Dados da pesquisa expiraram. Faça uma nova pesquisa!", show_alert=True)
+            return
+
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        nome_origem = AirportService.nome_formatado(dados["origem"])
+        nome_destino = AirportService.nome_formatado(dados["destino"])
+        ida_br = DateService.formatar_br(dados["data_ida"])
+        volta_br = DateService.formatar_br(dados.get("data_volta"))
+        datas = f"Ida ({ida_br}) e Volta ({volta_br})" if dados.get("data_volta") else f"Somente Ida ({ida_br})"
+
+        resumo = (
+            "🔔 *Ativar Monitoramento Contínuo:*\n\n"
+            f"🛫 *Trecho:* {nome_origem} ➔ {nome_destino}\n"
+            f"📅 *Datas:* {datas}\n"
+            f"💰 *Preço Teto Alvo:* R$ {dados['teto']:.2f}\n\n"
+            "Deseja que eu monitore e te avise quando encontrar ofertas desse trecho?"
+        )
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Confirmar e Ativar", callback_data="ai_confirmar"),
+                InlineKeyboardButton("❌ Cancelar", callback_data="ai_cancelar")
+            ]
+        ]
+        await query.message.reply_text(resumo, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
 # Alias para retrocompatibilidade
 callback_aprovacao = callback_geral
