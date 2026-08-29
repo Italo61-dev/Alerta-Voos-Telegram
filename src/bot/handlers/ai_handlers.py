@@ -11,10 +11,7 @@ def _obter_ou_criar_agente(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> 
     agent = context.user_data.get("travel_agent")
     if not agent:
         config = context.bot_data["config"]
-        client = genai.Client(
-            api_key=config.gemini_api_key,
-            http_options=types.HttpOptions(timeout=30000)
-        )
+        client = genai.Client(api_key=config.gemini_api_key)
         alerta_repo = context.bot_data["alerta_repo"]
         historico_repo = context.bot_data.get("historico_repo")
         agent = TravelAgent(
@@ -22,7 +19,7 @@ def _obter_ou_criar_agente(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> 
             user_id=user_id,
             alerta_repo=alerta_repo,
             historico_repo=historico_repo,
-            model="gemini-3.5-flash"
+            model="gemini-flash-lite-latest"
         )
         context.user_data["travel_agent"] = agent
     return agent
@@ -95,7 +92,7 @@ async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     status_msg = await update.message.reply_text(
-        "🎙️ _Ouvindo e analisando seu áudio com IA..._",
+        "🎙️ _Ouvindo e transcrevendo seu áudio..._",
         parse_mode="Markdown"
     )
 
@@ -107,12 +104,54 @@ async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         agent = _obter_ou_criar_agente(context, user_id)
 
+        # 1. Transcrição rápida e limpa do áudio usando modelo flash-lite (alta cota diária)
         audio_part = types.Part.from_bytes(data=bytes(audio_bytes), mime_type=mime_type)
-        conteudo = [
-            audio_part,
-            "Ouça com atenção o áudio acima enviado pelo usuário em português. Atenda ao pedido dele sobre passagens aéreas, alertas de preço ou dúvidas de viagem, executando as ferramentas necessárias se ele informou dados de voo."
-        ]
-        resposta_texto, alerta_id, link_flights = agent.enviar_mensagem(conteudo)
+        client = genai.Client(api_key=config.gemini_api_key)
+
+        transcricao = None
+        for mod_tr in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite"]:
+            try:
+                resp_tr = client.models.generate_content(
+                    model=mod_tr,
+                    contents=[
+                        audio_part,
+                        "Você é um transcritor em português. Transcreva fielmente as palavras faladas neste áudio. "
+                        "Se for apenas ruído, silêncio ou bipe sem palavras, responda apenas [SEM_FALA]. "
+                        "Retorne APENAS o texto falado, sem aspas, sem introduções ou explicações."
+                    ]
+                )
+                if resp_tr.text:
+                    texto_candidato = resp_tr.text.strip()
+                    if "[SEM_FALA]" not in texto_candidato and len(texto_candidato) > 1:
+                        transcricao = texto_candidato
+                        break
+            except Exception as ex_tr:
+                logging.warning(f"Erro na transcrição com {mod_tr}: {ex_tr}")
+                continue
+
+        if not transcricao:
+            try:
+                await status_msg.edit_text(
+                    "🎙️ _Não consegui compreender a fala no áudio (parece ter apenas ruído ou silêncio)._\n\n"
+                    "Poderia gravar novamente falando mais perto do microfone ou mandar em texto?",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
+            return
+
+        # Notifica o usuário com a transcrição identificada
+        try:
+            await status_msg.edit_text(
+                f"🎙️ *Você disse:* _\"{transcricao}\"_\n\n"
+                f"⏳ _Consultando voos e analisando..._",
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
+
+        # 2. Processa o texto puro no TravelAgent (elimina qualquer erro 400 de áudio em chat histórico)
+        resposta_texto, alerta_id, link_flights = agent.enviar_mensagem(transcricao)
 
         try:
             await status_msg.delete()
@@ -126,11 +165,12 @@ async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
             botoes.append([InlineKeyboardButton("🗑️ Excluir Alerta", callback_data=f"remover_{alerta_id}")])
 
         markup = InlineKeyboardMarkup(botoes) if botoes else None
+        mensagem_final = f"🎙️ *\"_{transcricao}_\"*\n\n{resposta_texto}"
 
         try:
-            await update.message.reply_text(resposta_texto, reply_markup=markup, parse_mode="Markdown")
+            await update.message.reply_text(mensagem_final, reply_markup=markup, parse_mode="Markdown")
         except Exception:
-            await update.message.reply_text(resposta_texto, reply_markup=markup)
+            await update.message.reply_text(mensagem_final, reply_markup=markup)
 
     except Exception as e:
         logging.error(f"Erro ao processar áudio via TravelAgent: {e}")

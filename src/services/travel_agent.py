@@ -23,7 +23,7 @@ class TravelAgent:
         user_id: int,
         alerta_repo: AlertaRepository,
         historico_repo: Optional[HistoricoRepository] = None,
-        model: str = "gemini-3.5-flash"
+        model: str = "gemini-flash-lite-latest"
     ):
         self.client = client
         self.user_id = user_id
@@ -278,7 +278,7 @@ class TravelAgent:
         self.ultimo_link_flights = None
 
         modelos = [self.model]
-        for m in ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.7-flash"]:
+        for m in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash"]:
             if m not in modelos:
                 modelos.append(m)
         ultimo_erro = None
