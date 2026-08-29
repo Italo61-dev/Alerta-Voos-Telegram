@@ -6,7 +6,13 @@ from src.models.voo import Voo
 
 class FlightService:
     @staticmethod
-    def buscar_voos(origem: str, destino: str, data_ida: str, data_volta: Optional[str] = None) -> List[Voo]:
+    def buscar_voos(
+        origem: str,
+        destino: str,
+        data_ida: str,
+        data_volta: Optional[str] = None,
+        apenas_direto: bool = False
+    ) -> List[Voo]:
         try:
             if data_volta:
                 flights = [
@@ -39,6 +45,9 @@ class FlightService:
                     except (ValueError, TypeError):
                         continue
 
+            if apenas_direto:
+                voos = [v for v in voos if v.escalas == 0]
+
             voos.sort(key=lambda x: x.preco)
             return voos
         except Exception as e:
@@ -46,9 +55,16 @@ class FlightService:
             return []
 
     @staticmethod
-    def gerar_link_google_flights(origem: str, destino: str, data_ida: str, data_volta: Optional[str] = None) -> str:
+    def gerar_link_google_flights(
+        origem: str,
+        destino: str,
+        data_ida: str,
+        data_volta: Optional[str] = None,
+        apenas_direto: bool = False
+    ) -> str:
+        sufixo = " non-stop" if apenas_direto else ""
         if data_volta:
-            termo = f"Flights to {destino} from {origem} on {data_ida} through {data_volta}"
+            termo = f"Flights to {destino} from {origem} on {data_ida} through {data_volta}{sufixo}"
         else:
-            termo = f"Flights to {destino} from {origem} on {data_ida}"
+            termo = f"Flights to {destino} from {origem} on {data_ida}{sufixo}"
         return f"https://www.google.com/travel/flights?q={quote(termo)}"

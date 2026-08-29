@@ -16,6 +16,7 @@ def init_db(config: Config):
                 data_ida TEXT NOT NULL,
                 data_volta TEXT,
                 ultimo_preco REAL,
+                apenas_direto INTEGER DEFAULT 0,
                 ativo INTEGER DEFAULT 1,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -48,6 +49,12 @@ def init_db(config: Config):
             CREATE INDEX IF NOT EXISTS idx_historico_trecho 
             ON historico_precos (origem, destino, data_ida)
         """)
+
+        # Migração segura para bancos pré-existentes
+        try:
+            cursor.execute("ALTER TABLE alertas ADD COLUMN apenas_direto INTEGER DEFAULT 0")
+        except Exception:
+            pass
         if config.admin_id:
             try:
                 cursor.execute("""

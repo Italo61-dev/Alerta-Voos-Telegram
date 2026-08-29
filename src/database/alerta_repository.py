@@ -11,15 +11,16 @@ class AlertaRepository:
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO alertas (chat_id, origem, destino, teto, data_ida, data_volta)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO alertas (chat_id, origem, destino, teto, data_ida, data_volta, apenas_direto)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 alerta.chat_id,
                 alerta.origem,
                 alerta.destino,
                 alerta.teto,
                 alerta.data_ida,
-                alerta.data_volta
+                alerta.data_volta,
+                1 if alerta.apenas_direto else 0
             ))
             return cursor.lastrowid
 
@@ -28,7 +29,7 @@ class AlertaRepository:
             with self.db.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT id, chat_id, origem, destino, teto, data_ida, data_volta, ultimo_preco, ativo, criado_em
+                    SELECT id, chat_id, origem, destino, teto, data_ida, data_volta, ultimo_preco, apenas_direto, ativo, criado_em
                     FROM alertas
                     WHERE chat_id = ? AND ativo = 1
                     ORDER BY id DESC
@@ -44,8 +45,9 @@ class AlertaRepository:
                         data_ida=r[5],
                         data_volta=r[6],
                         ultimo_preco=float(r[7]) if r[7] is not None else None,
-                        ativo=bool(r[8] == 1),
-                        criado_em=str(r[9]) if r[9] else None
+                        apenas_direto=bool(r[8] == 1),
+                        ativo=bool(r[9] == 1),
+                        criado_em=str(r[10]) if r[10] else None
                     )
                     for r in rows
                 ]
@@ -84,7 +86,7 @@ class AlertaRepository:
             with self.db.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT a.id, a.chat_id, a.origem, a.destino, a.teto, a.data_ida, a.data_volta, a.ultimo_preco, a.ativo, a.criado_em
+                    SELECT a.id, a.chat_id, a.origem, a.destino, a.teto, a.data_ida, a.data_volta, a.ultimo_preco, a.apenas_direto, a.ativo, a.criado_em
                     FROM alertas a
                     LEFT JOIN usuarios u ON a.chat_id = u.user_id
                     WHERE a.ativo = 1 AND (u.autorizado = 1 OR a.chat_id = ?)
@@ -100,8 +102,9 @@ class AlertaRepository:
                         data_ida=r[5],
                         data_volta=r[6],
                         ultimo_preco=float(r[7]) if r[7] is not None else None,
-                        ativo=bool(r[8] == 1),
-                        criado_em=str(r[9]) if r[9] else None
+                        apenas_direto=bool(r[8] == 1),
+                        ativo=bool(r[9] == 1),
+                        criado_em=str(r[10]) if r[10] else None
                     )
                     for r in rows
                 ]
@@ -114,7 +117,7 @@ class AlertaRepository:
             with self.db.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT id, chat_id, origem, destino, teto, data_ida, data_volta, ultimo_preco, ativo, criado_em
+                    SELECT id, chat_id, origem, destino, teto, data_ida, data_volta, ultimo_preco, apenas_direto, ativo, criado_em
                     FROM alertas
                     WHERE id = ?
                 """, (alerta_id,))
@@ -130,8 +133,9 @@ class AlertaRepository:
                     data_ida=r[5],
                     data_volta=r[6],
                     ultimo_preco=float(r[7]) if r[7] is not None else None,
-                    ativo=bool(r[8] == 1),
-                    criado_em=str(r[9]) if r[9] else None
+                    apenas_direto=bool(r[8] == 1),
+                    ativo=bool(r[9] == 1),
+                    criado_em=str(r[10]) if r[10] else None
                 )
         except Exception as e:
             logging.error(f"Erro ao obter alerta #{alerta_id}: {e}")

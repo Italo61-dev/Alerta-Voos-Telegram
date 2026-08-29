@@ -37,21 +37,40 @@ class TravelAgent:
     def _iniciar_chat(self):
         hoje = DateService.hoje_brasilia().isoformat()
 
-        def buscar_voos_tempo_real(origem: str, destino: str, data_ida: str, data_volta: str = None) -> dict:
+        def buscar_voos_tempo_real(
+            origem: str,
+            destino: str,
+            data_ida: str,
+            data_volta: str = None,
+            apenas_direto: bool = False
+        ) -> dict:
             """Busca opções de voos em tempo real no Google Flights.
             Args:
                 origem: Cidade ou aeroporto de partida (ex: São Paulo, GRU, Brasília, BSB).
                 destino: Cidade ou aeroporto de chegada (ex: Natal, NAT, Miami, MIA, Salvador).
                 data_ida: Data de ida no formato AAAA-MM-DD.
                 data_volta: Data de volta no formato AAAA-MM-DD (opcional se for só ida).
+                apenas_direto: Defina como True se o usuário quer apenas voos diretos (sem escalas ou conexões).
             """
             origem_iata = AirportService.resolver(origem) or origem.upper()
             destino_iata = AirportService.resolver(destino) or destino.upper()
             data_ida_iso = DateService.parse_data(data_ida) or data_ida
             data_volta_iso = DateService.parse_data(data_volta) if data_volta else None
 
-            voos = FlightService.buscar_voos(origem_iata, destino_iata, data_ida_iso, data_volta_iso)
-            link = FlightService.gerar_link_google_flights(origem_iata, destino_iata, data_ida_iso, data_volta_iso)
+            voos = FlightService.buscar_voos(
+                origem_iata,
+                destino_iata,
+                data_ida_iso,
+                data_volta_iso,
+                apenas_direto=apenas_direto
+            )
+            link = FlightService.gerar_link_google_flights(
+                origem_iata,
+                destino_iata,
+                data_ida_iso,
+                data_volta_iso,
+                apenas_direto=apenas_direto
+            )
             self.ultimo_link_flights = link
 
             # Registra a menor cotação encontrada no histórico do banco
@@ -79,12 +98,20 @@ class TravelAgent:
                 "destino": destino_iata,
                 "data_ida": data_ida_iso,
                 "data_volta": data_volta_iso,
+                "apenas_direto": apenas_direto,
                 "total_encontrados": len(voos),
                 "melhores_ofertas": top_3,
                 "link_google_flights": link
             }
 
-        def cadastrar_alerta_preco(origem: str, destino: str, data_ida: str, teto: float, data_volta: str = None) -> dict:
+        def cadastrar_alerta_preco(
+            origem: str,
+            destino: str,
+            data_ida: str,
+            teto: float,
+            data_volta: str = None,
+            apenas_direto: bool = False
+        ) -> dict:
             """Cadastra e salva um alerta de monitoramento no banco de dados para avisar o usuário quando o preço baixar até o teto.
             Args:
                 origem: Cidade ou aeroporto de saída (ex: Brasília, São Paulo).
@@ -92,6 +119,7 @@ class TravelAgent:
                 data_ida: Data de ida no formato AAAA-MM-DD.
                 teto: Valor máximo em Reais (BRL) que o usuário quer pagar (preço teto).
                 data_volta: Data de volta no formato AAAA-MM-DD (opcional).
+                apenas_direto: Defina como True se o usuário especificou que quer somente voos diretos (sem escalas).
             """
             origem_iata = AirportService.resolver(origem) or origem.upper()
             destino_iata = AirportService.resolver(destino) or destino.upper()
@@ -105,12 +133,19 @@ class TravelAgent:
                 destino=destino_iata,
                 teto=float(teto),
                 data_ida=data_ida_iso,
-                data_volta=data_volta_iso
+                data_volta=data_volta_iso,
+                apenas_direto=bool(apenas_direto)
             )
             alerta_id = self.alerta_repo.salvar(novo_alerta)
             self.ultimo_alerta_id = alerta_id
 
-            link = FlightService.gerar_link_google_flights(origem_iata, destino_iata, data_ida_iso, data_volta_iso)
+            link = FlightService.gerar_link_google_flights(
+                origem_iata,
+                destino_iata,
+                data_ida_iso,
+                data_volta_iso,
+                apenas_direto=apenas_direto
+            )
             self.ultimo_link_flights = link
 
             return {
@@ -121,6 +156,7 @@ class TravelAgent:
                 "teto": float(teto),
                 "data_ida": data_ida_iso,
                 "data_volta": data_volta_iso,
+                "apenas_direto": apenas_direto,
                 "mensagem": f"Alerta #{alerta_id} gravado no banco de dados com sucesso e ativo para monitoramento periódico!"
             }
 

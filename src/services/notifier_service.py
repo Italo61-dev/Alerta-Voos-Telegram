@@ -43,11 +43,14 @@ class NotifierService:
         ida_br = DateService.formatar_br(alerta.data_ida)
         volta_br = DateService.formatar_br(alerta.data_volta)
 
+        escala_info = "⚡ Somente voos diretos" if alerta.apenas_direto else "🔄 Voos diretos ou com conexão"
+
         msg = (
             f"🎯 *Alerta #{alerta_id} cadastrado com sucesso!*\n\n"
             f"🛫 *Trecho:* `{alerta.origem}` ➔ `{alerta.destino}`\n"
             f"📍 _{nome_origem} ➔ {nome_destino}_\n"
             f"💰 *Preço Teto:* R$ {alerta.teto:.2f}\n"
+            f"✈️ *Filtro:* {escala_info}\n"
             f"📅 *Data de Ida:* {ida_br}\n"
         )
         if alerta.data_volta:
@@ -65,9 +68,10 @@ class NotifierService:
         ida_br = DateService.formatar_br(alerta.data_ida)
         volta_br = DateService.formatar_br(alerta.data_volta)
         tipo = f"Ida ({ida_br}) e Volta ({volta_br})" if alerta.data_volta else f"Somente Ida ({ida_br})"
+        escala_tag = " `[Apenas Direto]`" if alerta.apenas_direto else ""
 
         msg = (
-            f"✈️ *Alerta #{alerta.id}*\n"
+            f"✈️ *Alerta #{alerta.id}*{escala_tag}\n"
             f"🛫 *Trecho:* `{alerta.origem}` ➔ `{alerta.destino}`\n"
             f"📍 _{nome_origem} ➔ {nome_destino}_\n"
             f"💰 *Preço Teto:* R$ {alerta.teto:.2f}\n"

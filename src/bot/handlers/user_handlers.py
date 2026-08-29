@@ -123,6 +123,8 @@ async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
+    apenas_direto = any(a.lower() in ["direto", "diretos", "sem_escala", "sem_escalas", "nonstop"] for a in args)
+
     alerta_repo = context.bot_data["alerta_repo"]
     novo_alerta = Alerta(
         id=None,
@@ -131,13 +133,14 @@ async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         destino=destino,
         teto=teto,
         data_ida=data_ida_iso,
-        data_volta=data_volta_iso
+        data_volta=data_volta_iso,
+        apenas_direto=apenas_direto
     )
     alerta_id = alerta_repo.salvar(novo_alerta)
     novo_alerta.id = alerta_id
 
     resposta = NotifierService.mensagem_alerta_cadastrado(alerta_id, novo_alerta)
-    link = FlightService.gerar_link_google_flights(origem, destino, data_ida_iso, data_volta_iso)
+    link = FlightService.gerar_link_google_flights(origem, destino, data_ida_iso, data_volta_iso, apenas_direto=apenas_direto)
     botoes = NotifierService.botoes_card_alerta(novo_alerta, link)
 
     await update.message.reply_text(resposta, reply_markup=botoes, parse_mode="Markdown")
@@ -171,7 +174,8 @@ async def listar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             origem=al.origem,
             destino=al.destino,
             data_ida=al.data_ida,
-            data_volta=al.data_volta
+            data_volta=al.data_volta,
+            apenas_direto=al.apenas_direto
         )
         stats = historico_repo.obter_estatisticas(al.origem, al.destino, al.data_ida) if historico_repo else None
         texto = NotifierService.mensagem_card_alerta(al, stats)

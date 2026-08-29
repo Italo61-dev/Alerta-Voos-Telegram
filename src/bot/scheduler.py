@@ -32,7 +32,8 @@ class AlertScheduler:
                 origem=alerta.origem,
                 destino=alerta.destino,
                 data_ida=alerta.data_ida,
-                data_volta=alerta.data_volta
+                data_volta=alerta.data_volta,
+                apenas_direto=alerta.apenas_direto
             )
             if not voos:
                 continue
@@ -65,7 +66,8 @@ class AlertScheduler:
                         origem=alerta.origem,
                         destino=alerta.destino,
                         data_ida=alerta.data_ida,
-                        data_volta=alerta.data_volta
+                        data_volta=alerta.data_volta,
+                        apenas_direto=alerta.apenas_direto
                     )
                     stats = self.historico_repo.obter_estatisticas(alerta.origem, alerta.destino, alerta.data_ida) if self.historico_repo else None
                     mensagem = NotifierService.mensagem_oferta_encontrada(alerta, melhor_voo, link, stats)

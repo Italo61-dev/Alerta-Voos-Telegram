@@ -122,14 +122,16 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
             origem=alerta.origem,
             destino=alerta.destino,
             data_ida=alerta.data_ida,
-            data_volta=alerta.data_volta
+            data_volta=alerta.data_volta,
+            apenas_direto=alerta.apenas_direto
         )
 
         link = FlightService.gerar_link_google_flights(
             origem=alerta.origem,
             destino=alerta.destino,
             data_ida=alerta.data_ida,
-            data_volta=alerta.data_volta
+            data_volta=alerta.data_volta,
+            apenas_direto=alerta.apenas_direto
         )
 
         agora = DateService.hora_formatada_br()

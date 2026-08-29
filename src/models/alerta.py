@@ -11,6 +11,7 @@ class Alerta:
     data_ida: str
     data_volta: Optional[str] = None
     ultimo_preco: Optional[float] = None
+    apenas_direto: bool = False
     ativo: bool = True
     criado_em: Optional[str] = None
 

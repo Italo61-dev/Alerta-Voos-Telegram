@@ -101,17 +101,17 @@ PORT=8080
   - [#14](https://github.com/Italo61-dev/alerta-voos-telegram/issues/14): `feat(flights)` Pesquisa instantânea de voos com top 3 opções via IA.
   - `feat(ai)` **Caminho A Implementado**: Agente Autônomo de Viagens com Function Calling nativo do Google Gemini (`TravelAgent`). O modelo decide e executa ferramentas diretamente em Python (`buscar_voos_tempo_real`, `cadastrar_alerta_preco`, `listar_alertas_cadastrados`, `desativar_alerta`), salvando no banco de dados SQLite/Turso em tempo real e mantendo histórico de chat natural. Suporta texto e áudio nativo.
 
-* **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3) - [EM ANDAMENTO]**
+* **📈 Sprint 3: Inteligência de Preços & Histórico (Milestone 3) - [CONCLUÍDA]**
   - [#7](https://github.com/Italo61-dev/alerta-voos-telegram/issues/7): `feat(data)` Histórico de preços por trecho persistido no banco [CONCLUÍDA].
   - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges de super promoção) [CONCLUÍDA].
-  - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão [PRÓXIMA TASK].
+  - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão [CONCLUÍDA].
 
-* **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4)**
-  - [#10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10): `feat(admin)` Comando /broadcast para envio de promoções globais aos usuários.
+* **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4) - [PRÓXIMA SPRINT]**
+  - [#10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10): `feat(admin)` Comando /broadcast para envio de promoções globais aos usuários [PRÓXIMA TASK].
   - [#11](https://github.com/Italo61-dev/alerta-voos-telegram/issues/11): `feat(admin)` Painel de estatísticas e métricas do bot (/stats).
   - [#12](https://github.com/Italo61-dev/alerta-voos-telegram/issues/12): `feat(fair-use)` Limite de alertas simultâneos por perfil de usuário.
 
 ---
 
 ## 6. Próxima Etapa de Desenvolvimento
-* Iniciar o desenvolvimento da **[Issue #9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): Filtro de voos diretos vs voos com conexão** (finalizando a Sprint 3!).
+* Iniciar a **Sprint 4 (Painel Admin & Transmissão Global)** começando pela **[Issue #10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10): Comando /broadcast para envio de promoções globais aos usuários**.

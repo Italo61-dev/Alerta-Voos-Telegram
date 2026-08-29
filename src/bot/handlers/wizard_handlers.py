@@ -270,13 +270,18 @@ async def confirmar_alerta(update: Update, context: ContextTypes.DEFAULT_TYPE):
             destino=dados["destino"],
             teto=dados["teto"],
             data_ida=dados["data_ida"],
-            data_volta=dados.get("data_volta")
+            data_volta=dados.get("data_volta"),
+            apenas_direto=dados.get("apenas_direto", False)
         )
         alerta_id = alerta_repo.salvar(novo_alerta)
         novo_alerta.id = alerta_id
 
         link = FlightService.gerar_link_google_flights(
-            dados["origem"], dados["destino"], dados["data_ida"], dados.get("data_volta")
+            dados["origem"],
+            dados["destino"],
+            dados["data_ida"],
+            dados.get("data_volta"),
+            apenas_direto=novo_alerta.apenas_direto
         )
         botoes = NotifierService.botoes_card_alerta(novo_alerta, link)
         resposta = NotifierService.mensagem_alerta_cadastrado(alerta_id, novo_alerta)
