@@ -1,37 +1,125 @@
-# ✈️ Bot de Alerta de Passagens Baratas (Telegram + Google Flights)
+# ✈️ Bot de Alerta de Passagens Baratas (Telegram + Google Flights + IA)
 
-Bot do Telegram em Python que monitora preços de voos diretamente pelo Google Flights e alerta automaticamente quando o preço bate a meta estipulada.
+Bot autônomo do Telegram desenvolvido em Python que monitora preços de passagens aéreas diretamente pelo **Google Flights** e notifica automaticamente quando o valor atinge a meta do viajante. Conta com **Agente Autônomo (Google Gemini)** para interação por texto e voz, histórico de inteligência de preços e painel administrativo completo.
 
-## 🚀 Funcionalidades
-- **Google Flights:** Sem custos de API corporativa, preços em R$ (BRL).
-- **Banco em Nuvem (Turso/SQLite):** Alertas persistem na nuvem mesmo com reinicializações do servidor.
-- **Checagem em Background:** Loop agendado a cada 3 horas.
-- **Link Direto:** Dispara mensagem com o link pronto para reserva.
-- **Modo Privado com Admin:** Solicitações de novos usuários com botões interativos de aprovação no Telegram.
+---
 
-## 📋 Comandos do Telegram
+## 🚀 Funcionalidades Principais
 
-### Usuários Comuns:
-- `/start` ou `/ajuda`: Mensagem de boas-vindas e instruções.
-- `/novo`: Assistente conversacional guiado passo a passo para criar alertas.
-- `/novidades`: Guia com o que mudou no bot e exemplos de como usar cada função.
-- `/alerta ORIGEM DESTINO TETO DATA_IDA [DATA_VOLTA]`: Criação rápida de alerta em linha.
-- `/listar`: Exibe todos os seus alertas ativos com botões interativos de 1 clique.
-- `/remover ID`: Desativa um alerta específico.
-- `/testar`: Força checagem imediata dos seus alertas.
-- *Mensagens de Texto e Áudio com IA:* Fale ou envie áudio naturalmente com o bot!
+* **Scraping Real-Time (Google Flights):** Sem custos de APIs corporativas caras, buscando preços reais em Reais (BRL) para trechos nacionais e internacionais.
+* **Agente de Viagens com IA (`Google Gemini`):**
+  * Compreensão em linguagem natural para pesquisas e cadastro de alertas.
+  * Transcrição desacoplada ultra-rápida de **mensagens de voz/áudio** do Telegram.
+  * *Function Calling Nativo:* O modelo executa ferramentas reais de busca e persistência no banco.
+* **Inteligência de Mercado & Histórico de Preços:**
+  * Armazena cotações em segundo plano para calcular o **Menor Preço Já Visto** e a **Média Histórica**.
+  * **Termômetro de Oportunidades:** Classifica ofertas como 🔥 *Super Promoção* (30% abaixo da média), 🟢 *Preço Excelente* (15% a 30% abaixo) ou 🟡 *Na Meta*.
+* **Filtro de Voos Diretos:** Suporte a filtros de voos sem conexões (`non-stop`).
+* **Banco de Dados em Nuvem (Turso Cloud / libSQL):** Persistência segura em nuvem que sobrevive a reinicializações em servidores efêmeros (Heroku/Render), com fallback automático para SQLite local.
+* **Verificação em Background (Scheduler):** Varredura automática a cada 3 horas (configurável).
+* **Controle de Acesso & Fair Use:**
+  * Sistema de moderação onde novos usuários solicitam acesso e o Admin aprova com 1 clique.
+  * Política de **Fair-Use configurável (padrão: 10 alertas ativos por usuário)**, evitando sobrecarga de scraping, com cota ilimitada para o Administrador.
+* **Central de Controle do Administrador (`/admin`):**
+  * Interface em botões inline para gestão sem poluir o chat de usuário.
+  * Painel de métricas e estatísticas em tempo real (`/stats`).
+  * Transmissão em massa para todos os usuários autorizados (`/broadcast` e `/broadcast_novidades`).
 
-### Administrador:
-- `/admin`: Central de comando interativa em botões (Estatísticas, Usuários, Transmissão e Checagem).
-- `/stats`: Painel consolidado de métricas (usuários, alertas ativos, histórico de cotações e top rotas).
-- `/usuarios`: Lista usuários registrados, status e ações.
-- `/aprovar ID`: Aprova manualmente o acesso de um usuário.
-- `/bloquear ID`: Bloqueia o acesso de um usuário.
-- `/broadcast <msg>`: Transmite mensagem personalizada para todos os usuários autorizados.
-- `/broadcast_novidades`: Dispara o resumo oficial de novidades e instruções para todos os usuários.
+---
+
+## 📋 Lista de Comandos
+
+### 👤 Usuários Comuns:
+* `/start` ou `/ajuda`: Mensagem de boas-vindas com instruções e menu interativo.
+* `/novo`: Assistente conversacional guiado (passo a passo) para criar alertas sem precisar memorizar comandos.
+* `/novidades`: Central de atualizações explicando os novos recursos do bot e exemplos de uso.
+* `/alerta ORIGEM DESTINO TETO DATA_IDA [DATA_VOLTA]`: Criação rápida de alerta em linha única (aceita nomes de cidades ou códigos IATA).
+* `/listar`: Exibe seus alertas ativos em cards visuais com botões de 1 clique:
+  * `[ 🔄 Checar Agora ]`: Consulta o preço imediatamente no Google Flights.
+  * `[ 🗑️ Excluir Alerta ]`: Desativa o monitoramento.
+  * `[ 🔗 Ver no Google Flights ]`: Abre a rota no navegador já filtrada.
+* `/remover ID`: Desativa um alerta específico pelo número de identificação.
+* `/testar`: Força checagem imediata de todos os seus alertas cadastrados.
+* **Conversa por Texto e Áudio com IA:** Envie mensagens como *"Quero ir de BSB para Salvador dia 15/11 pagando até 700"* ou mande um áudio no Telegram que o bot transcreve e atende o pedido!
+
+### 👑 Administrador:
+* `/admin`: Painel executivo interativo com botões para navegação rápida.
+* `/stats`: Painel consolidado de métricas (total de usuários, alertas ativos, volume de cotações salvas e ranking dos trechos mais buscados).
+* `/usuarios`: Lista de usuários cadastrados, status de autorização e IDs.
+* `/aprovar ID`: Concede acesso a um usuário pendente.
+* `/bloquear ID`: Revoga o acesso de um usuário.
+* `/broadcast <mensagem>`: Transmite um comunicado customizado para todos os usuários autorizados.
+* `/broadcast_novidades`: Dispara automaticamente o comunicado oficial com instruções de uso de novas funcionalidades.
+
+---
 
 ## ⚙️ Variáveis de Ambiente
-- `TELEGRAM_TOKEN`: Token do bot gerado pelo @BotFather.
-- `TURSO_DATABASE_URL`: URL do banco de dados Turso (ex: `libsql://...turso.io`).
-- `TURSO_AUTH_TOKEN`: Token de autenticação do Turso.
-- `ADMIN_ID`: ID numérico do Telegram do administrador (ex: `123456789`, obtido via @userinfobot).
+
+Configure as seguintes variáveis no arquivo `.env` local ou no painel do seu provedor (Heroku / Render / VPS):
+
+| Variável | Obrigatória | Padrão | Descrição |
+| :--- | :---: | :---: | :--- |
+| `TELEGRAM_TOKEN` | **Sim** | - | Token de API gerado pelo [@BotFather](https://t.me/BotFather). |
+| `ADMIN_ID` | **Sim** | - | Seu ID numérico no Telegram (obtido via [@userinfobot](https://t.me/userinfobot)). |
+| `GEMINI_API_KEY` | Não | `None` | Chave de API do [Google AI Studio](https://aistudio.google.com/). |
+| `TURSO_DATABASE_URL` | Não | `None` | URL do banco de dados Turso (ex: `libsql://meu-banco.turso.io`). |
+| `TURSO_AUTH_TOKEN` | Não | `None` | Token de autenticação gerado no Turso CLI. |
+| `CHECK_INTERVAL_HOURS`| Não | `3` | Intervalo em horas entre cada checagem automática. |
+| `MAX_ALERTAS_POR_USUARIO` | Não | `10` | Quantidade máxima de alertas ativos por usuário comum. |
+| `PORT` | Não | `8080` | Porta HTTP utilizada para o health check do servidor. |
+
+> **Nota:** Se `TURSO_DATABASE_URL` não for informado, o bot utiliza automaticamente o SQLite local (`alertas.db`).
+
+---
+
+## 🛠️ Como Rodar Localmente
+
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/Italo61-dev/Alerta-Voos-Telegram.git
+   cd Alerta-Voos-Telegram
+   ```
+
+2. **Crie e ative um ambiente virtual:**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Instale as dependências:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure as variáveis:**
+   ```bash
+   cp .env.example .env
+   # Edite o .env com seu TELEGRAM_TOKEN e ADMIN_ID
+   ```
+
+5. **Execute a suíte de testes:**
+   ```bash
+   python3 -m unittest discover tests
+   ```
+
+6. **Inicie o bot:**
+   ```bash
+   python3 main.py
+   ```
+
+---
+
+## ☁️ Deploy no Heroku
+
+O projeto já inclui `Procfile` e `.python-version` configurados para rodar 24/7:
+
+1. Defina as variáveis no painel do Heroku (`Settings > Config Vars`).
+2. Garanta que o dyno de worker esteja ativado:
+   ```bash
+   heroku ps:scale worker=1 -a seu-app-telegram
+   ```
+
+---
+
+## 📄 Licença
+Distribuído sob a licença MIT. Consulte `LICENSE` para mais detalhes.

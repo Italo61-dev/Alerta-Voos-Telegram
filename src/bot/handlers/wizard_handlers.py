@@ -31,6 +31,19 @@ CONFIRMAR_ALERTA = 7
 
 @requer_autorizacao
 async def iniciar_wizard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    config = context.bot_data["config"]
+    alerta_repo = context.bot_data["alerta_repo"]
+
+    if user_id != config.admin_id:
+        total_ativos = alerta_repo.contar_ativos_por_usuario(user_id)
+        if total_ativos >= config.max_alertas_por_usuario:
+            await update.message.reply_text(
+                NotifierService.mensagem_limite_atingido(config.max_alertas_por_usuario),
+                parse_mode="Markdown"
+            )
+            return ConversationHandler.END
+
     context.user_data["novo_alerta"] = {}
     await update.message.reply_text(
         "✈️ *Assistente de Criação de Alerta*\n\n"

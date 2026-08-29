@@ -23,13 +23,17 @@ class TravelAgent:
         user_id: int,
         alerta_repo: AlertaRepository,
         historico_repo: Optional[HistoricoRepository] = None,
-        model: str = "gemini-flash-lite-latest"
+        model: str = "gemini-flash-lite-latest",
+        max_alertas: int = 10,
+        admin_id: Optional[int] = None
     ):
         self.client = client
         self.user_id = user_id
         self.alerta_repo = alerta_repo
         self.historico_repo = historico_repo
         self.model = model
+        self.max_alertas = max_alertas
+        self.admin_id = admin_id
         self.ultimo_alerta_id: Optional[int] = None
         self.ultimo_link_flights: Optional[str] = None
         self._iniciar_chat()
@@ -125,6 +129,18 @@ class TravelAgent:
             destino_iata = AirportService.resolver(destino) or destino.upper()
             data_ida_iso = DateService.parse_data(data_ida) or data_ida
             data_volta_iso = DateService.parse_data(data_volta) if data_volta else None
+
+            if self.admin_id is None or self.user_id != self.admin_id:
+                total_ativos = self.alerta_repo.contar_ativos_por_usuario(self.user_id)
+                if total_ativos >= self.max_alertas:
+                    return {
+                        "status": "limite_atingido",
+                        "mensagem": (
+                            f"O usuário já possui {total_ativos} alertas ativos, que é o limite máximo permitido ({self.max_alertas}). "
+                            "Explique educadamente que ele atingiu o limite de alertas simultâneos e oriente-o a usar o comando /listar "
+                            "para excluir alertas antigos antes de criar um novo."
+                        )
+                    }
 
             novo_alerta = Alerta(
                 id=None,

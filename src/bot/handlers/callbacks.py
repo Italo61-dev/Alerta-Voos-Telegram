@@ -180,6 +180,15 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 5. Confirmação de Alerta via IA
     elif data == "ai_confirmar":
         await query.answer()
+        if user_id != config.admin_id:
+            total_ativos = alerta_repo.contar_ativos_por_usuario(user_id)
+            if total_ativos >= config.max_alertas_por_usuario:
+                await query.edit_message_text(
+                    NotifierService.mensagem_limite_atingido(config.max_alertas_por_usuario),
+                    parse_mode="Markdown"
+                )
+                return
+
         dados = context.user_data.pop("pendente_alerta_ia", None)
         context.user_data.pop("memoria_viagem", None)
         if not dados:
@@ -216,6 +225,15 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 6. Criar Alerta a partir de Pesquisa Instantânea
     elif data == "ai_criar_alerta_busca":
         await query.answer()
+        if user_id != config.admin_id:
+            total_ativos = alerta_repo.contar_ativos_por_usuario(user_id)
+            if total_ativos >= config.max_alertas_por_usuario:
+                await query.message.reply_text(
+                    NotifierService.mensagem_limite_atingido(config.max_alertas_por_usuario),
+                    parse_mode="Markdown"
+                )
+                return
+
         dados = context.user_data.get("pendente_alerta_ia")
         if not dados:
             await query.answer("⚠️ Dados da pesquisa expiraram. Faça uma nova pesquisa!", show_alert=True)

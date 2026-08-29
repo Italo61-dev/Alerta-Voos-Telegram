@@ -134,15 +134,16 @@ PORT=8080
   - [#8](https://github.com/Italo61-dev/alerta-voos-telegram/issues/8): `feat(intelligence)` Termômetro de oportunidade (badges 🔥 Super Promoção, 🟢 Preço Excelente, 🟡 Na Meta).
   - [#9](https://github.com/Italo61-dev/alerta-voos-telegram/issues/9): `feat(flights)` Filtro de voos diretos vs voos com conexão (`apenas_direto`).
 
-* **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4) - [EM ANDAMENTO 🚀]**
+* **👑 Sprint 4: Painel Admin & Transmissão Global (Milestone 4) - [100% CONCLUÍDA 🏆]**
   - [#10](https://github.com/Italo61-dev/alerta-voos-telegram/issues/10): `feat(admin)` Comando /broadcast para envio de promoções globais e novidades automáticas aos usuários [CONCLUÍDA ✅].
   - [#11](https://github.com/Italo61-dev/alerta-voos-telegram/issues/11): `feat(admin)` Painel de estatísticas e métricas do bot (/stats) e Central `/admin` com botões interativos [CONCLUÍDA ✅].
-  - [#12](https://github.com/Italo61-dev/alerta-voos-telegram/issues/12): `feat(fair-use)` Limite de alertas simultâneos por perfil de usuário [PRÓXIMA TASK].
+  - [#12](https://github.com/Italo61-dev/alerta-voos-telegram/issues/12): `feat(fair-use)` Limite de alertas simultâneos por perfil de usuário (padrão de 10 alertas para usuários comuns, ilimitado para Admin) [CONCLUÍDA ✅].
 
 ---
 
-## 6. Próxima Etapa de Desenvolvimento
-1. Criar a branch `feature/issue-12-fair-use-limits`.
-2. Implementar a **[Issue #12](https://github.com/Italo61-dev/alerta-voos-telegram/issues/12)**:
-   - Limite configurável de alertas ativos simultâneos por usuário (ex: padrão de 5 alertas para usuários comuns, ilimitado para o Administrador).
-   - Bloqueio amigável no `/alerta`, no wizard `/novo` e no `TravelAgent` quando o limite for atingido, orientando a remover alertas antigos com `/listar`.
+## 6. Estado Atual & Próximos Passos Futuros
+* **Status do Roadmap:** 100% das 4 Sprints planejadas e todas as 12 Issues concluídas e validadas com testes automatizados na branch `main`.
+* **Próximas Melhorias Sugeridas (Backlog Opcional / Futuro):**
+  - Monitoramento contínuo de latência da transcrição de áudio com modelos dedicados de Speech-to-Text.
+  - Relatórios semanais automáticos de promoções para os administradores.
+  - Integração com outros canais de mensageria (WhatsApp / Discord) se desejado.

@@ -42,6 +42,17 @@ class NotifierService:
         return msg
 
     @staticmethod
+    def mensagem_limite_atingido(limite: int) -> str:
+        return (
+            "⚠️ *Limite de Alertas Atingido!*\n\n"
+            f"Você já possui *{limite} alertas ativos simultâneos*, que é a cota máxima por usuário "
+            "para garantir a velocidade e estabilidade das consultas.\n\n"
+            "💡 *O que fazer?*\n"
+            "Use o comando `/listar` para visualizar seus alertas e excluir algum trecho antigo que você "
+            "não precisa mais antes de cadastrar um novo!"
+        )
+
+    @staticmethod
     def mensagem_alerta_cadastrado(alerta_id: int, alerta: Alerta) -> str:
         nome_origem = AirportService.nome_formatado(alerta.origem)
         nome_destino = AirportService.nome_formatado(alerta.destino)

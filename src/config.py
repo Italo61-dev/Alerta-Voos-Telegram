@@ -17,6 +17,7 @@ class Config:
     check_interval_hours: int
     port: int
     db_path: Path
+    max_alertas_por_usuario: int = 10
 
 def _carregar_arquivo_env():
     if ENV_PATH.exists():
@@ -60,6 +61,11 @@ def load_config() -> Config:
     except ValueError:
         port = 8080
 
+    try:
+        max_alertas = int(os.environ.get("MAX_ALERTAS_POR_USUARIO", 10))
+    except ValueError:
+        max_alertas = 10
+
     return Config(
         telegram_token=token,
         admin_id=admin_id,
@@ -69,4 +75,5 @@ def load_config() -> Config:
         check_interval_hours=check_interval,
         port=port,
         db_path=DEFAULT_DB_PATH,
+        max_alertas_por_usuario=max_alertas,
     )

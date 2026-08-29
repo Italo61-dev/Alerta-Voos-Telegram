@@ -19,7 +19,9 @@ def _obter_ou_criar_agente(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> 
             user_id=user_id,
             alerta_repo=alerta_repo,
             historico_repo=historico_repo,
-            model="gemini-flash-lite-latest"
+            model="gemini-flash-lite-latest",
+            max_alertas=config.max_alertas_por_usuario,
+            admin_id=config.admin_id
         )
         context.user_data["travel_agent"] = agent
     return agent

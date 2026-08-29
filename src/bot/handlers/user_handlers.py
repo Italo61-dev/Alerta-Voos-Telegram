@@ -23,6 +23,20 @@ async def ajuda_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @requer_autorizacao
 async def alerta_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    config = context.bot_data["config"]
+    alerta_repo = context.bot_data["alerta_repo"]
+
+    # Verificação de Fair-Use (Limite de Alertas Ativos para usuários não-admin)
+    if user_id != config.admin_id:
+        total_ativos = alerta_repo.contar_ativos_por_usuario(user_id)
+        if total_ativos >= config.max_alertas_por_usuario:
+            await update.message.reply_text(
+                NotifierService.mensagem_limite_atingido(config.max_alertas_por_usuario),
+                parse_mode="Markdown"
+            )
+            return
+
     args = context.args or []
 
     if len(args) < 4:

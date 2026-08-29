@@ -55,6 +55,20 @@ class AlertaRepository:
             logging.error(f"Erro ao listar alertas do usuário {chat_id}: {e}")
             return []
 
+    def contar_ativos_por_usuario(self, chat_id: int) -> int:
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT COUNT(*) FROM alertas WHERE chat_id = ? AND ativo = 1",
+                    (chat_id,)
+                )
+                row = cursor.fetchone()
+                return row[0] if row else 0
+        except Exception as e:
+            logging.error(f"Erro ao contar alertas ativos do usuário {chat_id}: {e}")
+            return 0
+
     def desativar(self, alerta_id: int, chat_id: int) -> bool:
         try:
             with self.db.get_connection() as conn:
