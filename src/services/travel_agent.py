@@ -23,7 +23,7 @@ class TravelAgent:
         user_id: int,
         alerta_repo: AlertaRepository,
         historico_repo: Optional[HistoricoRepository] = None,
-        model: str = "gemini-3.7-flash"
+        model: str = "gemini-3.5-flash"
     ):
         self.client = client
         self.user_id = user_id
@@ -278,7 +278,7 @@ class TravelAgent:
         self.ultimo_link_flights = None
 
         modelos = [self.model]
-        for m in ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]:
+        for m in ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.7-flash"]:
             if m not in modelos:
                 modelos.append(m)
         ultimo_erro = None
@@ -300,11 +300,11 @@ class TravelAgent:
                     logging.warning(f"Modelo {mod} indisponível (503). Tentando próximo...")
                     continue
                 logging.error(f"Erro na chamada do TravelAgent ({mod}): {e}")
-                break
+                continue
             except Exception as e:
                 ultimo_erro = e
-                logging.error(f"Erro inesperado no TravelAgent ({mod}): {e}")
-                break
+                logging.warning(f"Exceção/Timeout no TravelAgent ({mod}): {e}. Tentando próximo modelo...")
+                continue
 
         if ultimo_erro and ("429" in str(ultimo_erro) or "RESOURCE_EXHAUSTED" in str(ultimo_erro)):
             return (
