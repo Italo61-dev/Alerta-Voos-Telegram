@@ -356,5 +356,15 @@ async def callback_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
+    elif data == "admin_comandos":
+        await query.answer()
+        if user_id != config.admin_id:
+            await query.answer("⛔ Acesso restrito ao administrador.", show_alert=True)
+            return
+        texto = NotifierService.mensagem_guia_comandos()
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = [[InlineKeyboardButton("🔙 Menu Admin", callback_data="admin_menu")]]
+        await query.edit_message_text(texto, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
 # Alias para retrocompatibilidade
 callback_aprovacao = callback_geral

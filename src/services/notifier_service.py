@@ -278,6 +278,32 @@ class NotifierService:
             [
                 InlineKeyboardButton("📢 Disparar Novidades", callback_data="admin_broadcast_novidades"),
                 InlineKeyboardButton("⚡ Checar Voos Agora", callback_data="admin_testar")
+            ],
+            [
+                InlineKeyboardButton("📖 Central de Comandos (User & Admin)", callback_data="admin_comandos")
             ]
         ]
         return InlineKeyboardMarkup(keyboard)
+
+    @staticmethod
+    def mensagem_guia_comandos() -> str:
+        return (
+            "📖 *CENTRAL DE COMANDOS DO SISTEMA* ✈️\n\n"
+            "👤 *COMANDOS DE USUÁRIOS:*\n"
+            "• `/novo` ➔ Assistente conversacional guiado (passo a passo)\n"
+            "• `/alerta ORIGEM DESTINO TETO DATA [VOLTA]` ➔ Cadastro expresso em 1 linha\n"
+            "• `/listar` ➔ Cards interativos com `[🔄 Checar]`, `[🗑️ Excluir]` e link\n"
+            "• `/novidades` ➔ Central de atualizações e novas funções\n"
+            "• `/remover ID` ➔ Exclusão direta de alerta pelo ID\n"
+            "• `/testar` ➔ Força verificação imediata dos seus alertas\n"
+            "• `/ajuda` ou `/start` ➔ Manual de início e apresentação\n"
+            "• 🎙️ *Áudio ou Texto com IA* ➔ Fale ou digite livremente com o consultor!\n\n"
+            "👑 *COMANDOS DE ADMINISTRADOR:*\n"
+            "• `/admin` ➔ Central de controle interativa com botões\n"
+            "• `/stats` ➔ Métricas em tempo real (usuários, alertas, histórico e rotas)\n"
+            "• `/usuarios` ➔ Lista todos os usuários, IDs e status de autorização\n"
+            "• `/aprovar ID` ➔ Aprova manualmente o acesso de um usuário\n"
+            "• `/bloquear ID` ➔ Bloqueia/revoga o acesso de um usuário\n"
+            "• `/broadcast <msg>` ➔ Transmite comunicado customizado para todos\n"
+            "• `/broadcast_novidades` ➔ Dispara o resumo oficial de novidades"
+        )
