@@ -79,3 +79,52 @@ class AIService:
             logging.error(f"Erro inesperado no AIService: {e}")
 
         return None
+
+    def processar_audio(self, audio_bytes: bytes, mime_type: str = "audio/ogg", hoje_iso: Optional[str] = None) -> Optional[DadosAlertaIA]:
+        if not self.disponivel():
+            logging.warning("AIService chamado mas chave GEMINI_API_KEY não está configurada.")
+            return None
+
+        hoje = hoje_iso or date.today().isoformat()
+        prompt = (
+            f"Você é o assistente inteligente de viagens de um bot de passagens aéreas no Telegram.\n"
+            f"A data de hoje é {hoje}.\n"
+            "O usuário enviou uma mensagem de áudio em anexo.\n\n"
+            "Instruções:\n"
+            "1. Ouça e compreenda o que o usuário disse no áudio.\n"
+            "2. Identifique se ele quer cadastrar um alerta de voo ('criar_alerta') ou tirando dúvida ('duvida_viagem').\n"
+            "3. Se for criar_alerta, extraia: origem, destino, data_ida (AAAA-MM-DD), data_volta (AAAA-MM-DD se houver) e teto em R$.\n"
+            "4. Se faltar algum dado para o alerta, preencha resposta_direta perguntando com gentileza o que falta.\n"
+            "5. Se for dúvida de viagem, responda de forma prestativa em resposta_direta."
+        )
+
+        try:
+            audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=[audio_part, prompt],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=DadosAlertaIA,
+                    temperature=0.2,
+                ),
+            )
+            if response.text:
+                dados = DadosAlertaIA.model_validate_json(response.text)
+                return dados
+        except APIError as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                logging.warning(f"Limite da API Gemini atingido (429) em áudio: {e}")
+                return DadosAlertaIA(
+                    intencao="rate_limit",
+                    resposta_direta=(
+                        "⏳ *Limite temporário de IA atingido!*\n\n"
+                        "A cota gratuita de inteligência artificial atingiu o limite de requisições por minuto.\n"
+                        "Ela volta a funcionar em instantes. Enquanto isso, use o assistente `/novo`!"
+                    )
+                )
+            logging.error(f"Erro na API do Gemini em áudio: {e}")
+        except Exception as e:
+            logging.error(f"Erro inesperado no AIService em áudio: {e}")
+
+        return None

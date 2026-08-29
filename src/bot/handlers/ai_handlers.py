@@ -2,55 +2,16 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.bot.middlewares import requer_autorizacao
-from src.services.ai_service import AIService
+from src.services.ai_service import AIService, DadosAlertaIA
 from src.services.airport_service import AirportService
 from src.services.date_service import DateService
 from src.services.flight_service import FlightService
 from src.services.notifier_service import NotifierService
-from src.models.alerta import Alerta
 
-@requer_autorizacao
-async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto = update.message.text.strip()
-    if not texto:
-        return
-
-    config = context.bot_data["config"]
-    if not config.gemini_api_key:
-        await update.message.reply_text(
-            "💡 Para cadastrar um alerta, use:\n"
-            "✨ `/novo` - Assistente guiado passo a passo\n"
-            "⚡ `/alerta ORIGEM DESTINO TETO DATA_IDA`\n\n"
-            "Envie /ajuda para mais opções.",
-            parse_mode="Markdown"
-        )
-        return
-
-    ai_service = context.bot_data.get("ai_service")
-    if not ai_service:
-        ai_service = AIService(config.gemini_api_key)
-        context.bot_data["ai_service"] = ai_service
-
-    # Mostra animação 'digitando...' enquanto o Gemini processa
-    try:
-        await update.message.chat.send_action("typing")
-    except Exception:
-        pass
-
-    hoje_iso = DateService.hoje_brasilia().isoformat()
-    resultado = ai_service.processar_mensagem(texto, hoje_iso=hoje_iso)
-
-    if not resultado:
-        await update.message.reply_text(
-            "Desculpe, não consegui entender o pedido no momento. "
-            "Você pode tentar reformular ou usar o assistente `/novo`!",
-            parse_mode="Markdown"
-        )
-        return
-
+async def _processar_resultado_ia(update: Update, context: ContextTypes.DEFAULT_TYPE, resultado: DadosAlertaIA):
     # 1. Tratamento de Rate Limit
     if resultado.intencao == "rate_limit":
-        await update.message.reply_text(resultado.resposta_direta, parse_mode="Markdown")
+        await update.message.reply_text(resultado.resposta_direta or "Limite atingido.", parse_mode="Markdown")
         return
 
     # 2. Resposta de consultor de viagens ou pedido de dado faltante
@@ -130,7 +91,7 @@ async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tipo_str = f"Ida ({ida_br}) e Volta ({volta_br})" if data_volta_iso else f"Somente Ida ({ida_br})"
 
     card_resumo = (
-        "🤖 *Entendi seu alerta de voo!*\n\n"
+        "🤖 *Entendi seu pedido de alerta!*\n\n"
         f"🛫 *Origem:* {nome_origem}\n"
         f"🛬 *Destino:* {nome_destino}\n"
         f"📅 *Datas:* {tipo_str}\n"
@@ -149,3 +110,96 @@ async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
+
+@requer_autorizacao
+async def mensagem_texto_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = update.message.text.strip()
+    if not texto:
+        return
+
+    config = context.bot_data["config"]
+    if not config.gemini_api_key:
+        await update.message.reply_text(
+            "💡 Para cadastrar um alerta, use:\n"
+            "✨ `/novo` - Assistente guiado passo a passo\n"
+            "⚡ `/alerta ORIGEM DESTINO TETO DATA_IDA`\n\n"
+            "Envie /ajuda para mais opções.",
+            parse_mode="Markdown"
+        )
+        return
+
+    ai_service = context.bot_data.get("ai_service")
+    if not ai_service:
+        ai_service = AIService(config.gemini_api_key)
+        context.bot_data["ai_service"] = ai_service
+
+    # Mostra animação 'digitando...' enquanto o Gemini processa
+    try:
+        await update.message.chat.send_action("typing")
+    except Exception:
+        pass
+
+    hoje_iso = DateService.hoje_brasilia().isoformat()
+    resultado = ai_service.processar_mensagem(texto, hoje_iso=hoje_iso)
+
+    if not resultado:
+        await update.message.reply_text(
+            "Desculpe, não consegui entender o pedido no momento. "
+            "Você pode tentar reformular ou usar o assistente `/novo`!",
+            parse_mode="Markdown"
+        )
+        return
+
+    await _processar_resultado_ia(update, context, resultado)
+
+@requer_autorizacao
+async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    config = context.bot_data["config"]
+    if not config.gemini_api_key:
+        await update.message.reply_text(
+            "⚠️ O recurso de áudio com IA não está habilitado no momento.",
+            parse_mode="Markdown"
+        )
+        return
+
+    ai_service = context.bot_data.get("ai_service")
+    if not ai_service:
+        ai_service = AIService(config.gemini_api_key)
+        context.bot_data["ai_service"] = ai_service
+
+    voice = update.message.voice or update.message.audio
+    if not voice:
+        return
+
+    status_msg = await update.message.reply_text(
+        "🎙️ _Ouvindo e analisando seu áudio com IA..._",
+        parse_mode="Markdown"
+    )
+
+    try:
+        tg_file = await context.bot.get_file(voice.file_id)
+        audio_bytes = await tg_file.download_as_bytearray()
+        mime_type = voice.mime_type or "audio/ogg"
+
+        hoje_iso = DateService.hoje_brasilia().isoformat()
+        resultado = ai_service.processar_audio(bytes(audio_bytes), mime_type=mime_type, hoje_iso=hoje_iso)
+
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+
+        if not resultado:
+            await update.message.reply_text(
+                "❌ Não consegui compreender o áudio. Tente enviar novamente falando mais perto do microfone ou digite em texto!",
+                parse_mode="Markdown"
+            )
+            return
+
+        await _processar_resultado_ia(update, context, resultado)
+    except Exception as e:
+        logging.error(f"Erro ao processar áudio via IA: {e}")
+        await update.message.reply_text(
+            "❌ Ocorreu um erro ao processar seu áudio. Tente enviar em texto!",
+            parse_mode="Markdown"
+        )

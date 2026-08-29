@@ -27,7 +27,7 @@ from src.bot.handlers.admin_handlers import (
 )
 from src.bot.handlers.callbacks import callback_geral
 from src.bot.handlers.wizard_handlers import criar_wizard_handler
-from src.bot.handlers.ai_handlers import mensagem_texto_ia
+from src.bot.handlers.ai_handlers import mensagem_texto_ia, mensagem_audio_ia
 from src.bot.scheduler import AlertScheduler
 
 def create_bot_app(config: Config) -> Application:
@@ -66,7 +66,8 @@ def create_bot_app(config: Config) -> Application:
     # 4. Callbacks de Botões Inline Gerais
     app.add_handler(CallbackQueryHandler(callback_geral))
 
-    # 5. Mensagens Livres com IA (Google Gemini)
+    # 5. Mensagens Livres com IA (Google Gemini) - Texto e Áudio
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, mensagem_texto_ia))
+    app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, mensagem_audio_ia))
 
     return app
