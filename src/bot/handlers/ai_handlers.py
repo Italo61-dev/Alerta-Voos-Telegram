@@ -19,7 +19,7 @@ def _obter_ou_criar_agente(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> 
             user_id=user_id,
             alerta_repo=alerta_repo,
             historico_repo=historico_repo,
-            model="gemini-3.5-flash-lite"
+            model="gemini-3.6-flash"
         )
         context.user_data["travel_agent"] = agent
     return agent
@@ -105,7 +105,11 @@ async def mensagem_audio_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         agent = _obter_ou_criar_agente(context, user_id)
 
         audio_part = types.Part.from_bytes(data=bytes(audio_bytes), mime_type=mime_type)
-        resposta_texto, alerta_id, link_flights = agent.enviar_mensagem(audio_part)
+        conteudo = [
+            audio_part,
+            "Ouça com atenção o áudio acima enviado pelo usuário em português. Atenda ao pedido dele sobre passagens aéreas, alertas de preço ou dúvidas de viagem, executando as ferramentas necessárias se ele informou dados de voo."
+        ]
+        resposta_texto, alerta_id, link_flights = agent.enviar_mensagem(conteudo)
 
         try:
             await status_msg.delete()
